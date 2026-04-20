@@ -15,10 +15,8 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub enum ViolationKind {
     MustContain,
-    MustContainRegex,
     MustNotContain,
     ExitCode,
-    InvalidRegex,
 }
 
 /// A single assertion violation.
@@ -51,15 +49,6 @@ pub struct AssertionReport {
 /// absent, the path is appended as the last arg.
 pub const OCR_CMD_ENV: &str = "PHENOTYPE_JOURNEY_OCR_CMD";
 
-/// Environment variable selecting the OCR backend. Recognised values:
-///
-/// * `tesseract` (default) — shell out to `tesseract` (or honour
-///   [`OCR_CMD_ENV`] if set).
-/// * `vision` — Apple Vision `VNRecognizeTextRequest` (macOS only, requires
-///   the `vision` cargo feature). Fails loudly when the feature is not
-///   compiled in or the host is not macOS.
-pub const OCR_BACKEND_ENV: &str = "PHENOTYPE_JOURNEY_OCR_BACKEND";
-
 /// Run all assertions for a manifest.
 ///
 /// * `manifest_path` – path to the `manifest.json` (used only to derive the
@@ -91,10 +80,7 @@ pub fn run_on_manifest(
 
     for step in &steps_with_assertions {
         let a = step.assertions.as_ref().expect("filtered");
-        if !a.must_contain.is_empty()
-            || !a.must_contain_regex.is_empty()
-            || !a.must_not_contain.is_empty()
-        {
+        if !a.must_contain.is_empty() || !a.must_not_contain.is_empty() {
             let frame_path = keyframe_path(artefacts_root, &manifest.id, step);
             let text = ocr_text(&frame_path)?;
             for needle in &a.must_contain {
@@ -105,28 +91,6 @@ pub fn run_on_manifest(
                         expected: needle.clone(),
                         got_snippet: snippet(&text, 160),
                     });
-                }
-            }
-            for pattern in &a.must_contain_regex {
-                match regex::Regex::new(pattern) {
-                    Ok(re) => {
-                        if !re.is_match(&text) {
-                            violations.push(Violation {
-                                step_index: step.index,
-                                kind: ViolationKind::MustContainRegex,
-                                expected: pattern.clone(),
-                                got_snippet: snippet(&text, 160),
-                            });
-                        }
-                    }
-                    Err(e) => {
-                        violations.push(Violation {
-                            step_index: step.index,
-                            kind: ViolationKind::InvalidRegex,
-                            expected: pattern.clone(),
-                            got_snippet: format!("invalid regex: {e}"),
-                        });
-                    }
                 }
             }
             for needle in &a.must_not_contain {
@@ -144,12 +108,6 @@ pub fn run_on_manifest(
 
     // Exit-code sentinel: if ANY step declares `expected_exit`, OCR the LAST
     // keyframe of the journey and look for `__EXIT_<N>__`.
-    //
-    // OCR-tolerance: both Tesseract and Apple Vision mangle pairs of leading /
-    // trailing underscores (collapsing `__` → `_` or dropping one side), so we
-    // accept any of the canonical sentinel, a single-underscore variant, or
-    // the bare `EXIT N` form. The shell still emits the canonical string; we
-    // only loosen the *recogniser*, not the producer.
     let last_exit: Option<(u32, i32)> = manifest
         .steps
         .iter()
@@ -158,21 +116,12 @@ pub fn run_on_manifest(
         if let Some(last) = manifest.steps.last() {
             let frame_path = keyframe_path(artefacts_root, &manifest.id, last);
             let text = ocr_text(&frame_path)?;
-            let canonical = format!("__EXIT_{}__", expected);
-            let tolerant_variants = [
-                canonical.clone(),
-                format!("_EXIT_{}_", expected),
-                format!("EXIT_{}_", expected),
-                format!("_EXIT_{}", expected),
-                format!("EXIT {}", expected),
-                format!("EXIT_{}", expected),
-            ];
-            let matched = tolerant_variants.iter().any(|v| text.contains(v));
-            if !matched {
+            let sentinel = format!("__EXIT_{}__", expected);
+            if !text.contains(&sentinel) {
                 violations.push(Violation {
                     step_index,
                     kind: ViolationKind::ExitCode,
-                    expected: canonical,
+                    expected: sentinel,
                     got_snippet: snippet(&text, 160),
                 });
             }
@@ -199,77 +148,36 @@ fn keyframe_path(artefacts_root: &Path, journey_id: &str, step: &Step) -> PathBu
 
 fn snippet(text: &str, max: usize) -> String {
     let collapsed: String = text.chars().map(|c| if c == '\n' { ' ' } else { c }).collect();
-    if collapsed.chars().count() <= max {
+    if collapsed.len() <= max {
         collapsed
     } else {
-        let truncated: String = collapsed.chars().take(max).collect();
-        format!("{truncated}…")
+        format!("{}…", &collapsed[..max])
     }
 }
 
 fn find_snippet(text: &str, needle: &str, pad: usize) -> String {
     if let Some(idx) = text.find(needle) {
-        let start = floor_char_boundary(text, idx.saturating_sub(pad));
-        let end = ceil_char_boundary(text, (idx + needle.len() + pad).min(text.len()));
-        text[start..end].replace('\n', " ")
+        let start = idx.saturating_sub(pad);
+        let end = (idx + needle.len() + pad).min(text.len());
+        let slice = &text[start..end];
+        slice.replace('\n', " ")
     } else {
         snippet(text, 160)
     }
-}
-
-fn floor_char_boundary(s: &str, mut idx: usize) -> usize {
-    while idx > 0 && !s.is_char_boundary(idx) {
-        idx -= 1;
-    }
-    idx
-}
-
-fn ceil_char_boundary(s: &str, mut idx: usize) -> usize {
-    while idx < s.len() && !s.is_char_boundary(idx) {
-        idx += 1;
-    }
-    idx
 }
 
 /// Invoke the OCR command on a single PNG and return the decoded text.
 ///
 /// Resolution order:
 /// 1. `PHENOTYPE_JOURNEY_OCR_CMD` env override (used by tests + custom pipelines).
-/// 2. `PHENOTYPE_JOURNEY_OCR_BACKEND=vision` — Apple Vision `VNRecognizeTextRequest`
-///    (macOS only; requires the `vision` cargo feature). Fails loudly when
-///    the backend is unavailable — no silent fallback.
-/// 3. `tesseract <path> -` (default).
+/// 2. `tesseract <path> -`.
 ///
 /// Returns [`JourneyError::Ocr`] when the backend is missing or exits non-zero.
 pub fn ocr_text(frame_path: &Path) -> Result<String, JourneyError> {
     if let Ok(cmd) = std::env::var(OCR_CMD_ENV) {
         return run_override(&cmd, frame_path);
     }
-    if let Ok(backend) = std::env::var(OCR_BACKEND_ENV) {
-        match backend.as_str() {
-            "vision" => return run_vision(frame_path),
-            "tesseract" | "" => {}
-            other => {
-                return Err(JourneyError::Ocr(format!(
-                    "unknown {OCR_BACKEND_ENV}={other}; expected `tesseract` or `vision`"
-                )));
-            }
-        }
-    }
     run_tesseract(frame_path)
-}
-
-#[cfg(all(feature = "vision", target_os = "macos"))]
-fn run_vision(frame_path: &Path) -> Result<String, JourneyError> {
-    crate::vision::ocr_vision(frame_path)
-}
-
-#[cfg(not(all(feature = "vision", target_os = "macos")))]
-fn run_vision(_frame_path: &Path) -> Result<String, JourneyError> {
-    Err(JourneyError::Ocr(format!(
-        "{OCR_BACKEND_ENV}=vision requires the `vision` cargo feature on a macOS host; \
-         rebuild with `--features vision` on macOS or unset the env var."
-    )))
 }
 
 fn run_tesseract(frame_path: &Path) -> Result<String, JourneyError> {
@@ -356,11 +264,8 @@ mod tests {
             intent: "s".into(),
             screenshot_path: file.into(),
             description: None,
-            blind_description: None,
             judge_score: None,
             assertions: Some(a),
-            annotations: None,
-            agreement: None,
         }
     }
 
@@ -460,56 +365,6 @@ mod tests {
     }
 
     #[test]
-    fn must_contain_regex_matches() {
-        let tmp = tempdir_abs();
-        // Simulates OCR-mangled `__EXIT_1__` as `-EXIT_1__`.
-        write_fixture(&tmp, "j", "frame-001.png", "final line -EXIT_1__ done");
-        std::env::set_var(OCR_CMD_ENV, "cat {{PATH}}");
-        let m = mk_manifest(
-            "j",
-            vec![step(
-                0,
-                "frame-001.png",
-                StepAssertions {
-                    must_contain_regex: vec![r"EXIT[_ ]?[0-9O@]".into()],
-                    ..Default::default()
-                },
-            )],
-        );
-        let r = run_on_manifest(&m, &tmp).unwrap();
-        std::env::remove_var(OCR_CMD_ENV);
-        assert!(r.passed, "violations: {:?}", r.violations);
-    }
-
-    #[test]
-    fn must_contain_regex_violation_and_invalid() {
-        let tmp = tempdir_abs();
-        write_fixture(&tmp, "j", "frame-001.png", "plain text with no digits");
-        std::env::set_var(OCR_CMD_ENV, "cat {{PATH}}");
-        let m = mk_manifest(
-            "j",
-            vec![step(
-                0,
-                "frame-001.png",
-                StepAssertions {
-                    must_contain_regex: vec![
-                        r"EXIT[_ ]?\d".into(), // non-matching
-                        "(unterminated".into(), // invalid regex
-                    ],
-                    ..Default::default()
-                },
-            )],
-        );
-        let r = run_on_manifest(&m, &tmp).unwrap();
-        std::env::remove_var(OCR_CMD_ENV);
-        assert!(!r.passed);
-        assert_eq!(r.violations.len(), 2);
-        let kinds: Vec<_> = r.violations.iter().map(|v| &v.kind).collect();
-        assert!(kinds.contains(&&ViolationKind::MustContainRegex));
-        assert!(kinds.contains(&&ViolationKind::InvalidRegex));
-    }
-
-    #[test]
     fn no_assertions_flag() {
         let tmp = tempdir_abs();
         write_fixture(&tmp, "j", "frame-001.png", "hi");
@@ -521,11 +376,8 @@ mod tests {
                 intent: "i".into(),
                 screenshot_path: "frame-001.png".into(),
                 description: None,
-                blind_description: None,
                 judge_score: None,
                 assertions: None,
-                annotations: None,
-                agreement: None,
             }],
         );
         let r = run_on_manifest(&m, &tmp).unwrap();

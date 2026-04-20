@@ -52,11 +52,9 @@ fn prefix_recording_flags_error_substring() {
             intent: "Cargo compiles and launches the traceability tool".into(),
             screenshot_path: "frame-002.png".into(),
             description: None,
-            blind_description: None,
             judge_score: None,
             assertions: Some(StepAssertions {
                 must_contain: vec![],
-                must_contain_regex: vec![],
                 must_not_contain: vec![
                     "error:".into(),
                     "unexpected argument".into(),
@@ -64,8 +62,6 @@ fn prefix_recording_flags_error_substring() {
                 expected_exit: None,
                 ocr_required: true,
             }),
-            annotations: None,
-            agreement: None,
         }],
         verification: None,
     };
