@@ -9,6 +9,7 @@ description = "Shared types and verification logic for Phenotype journey manifes
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
 thiserror = { workspace = true }
 chrono = { workspace = true }
 schemars = { workspace = true }

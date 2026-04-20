@@ -8,6 +8,7 @@
 //! verified by a Claude-describe + Claude-judge loop.
 
 pub mod assertions;
+pub mod pipeline;
 pub mod verify;
 
 use schemars::JsonSchema;
@@ -45,6 +46,68 @@ impl StepAssertions {
     }
 }
 
+/// Rendering kind for an annotation.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum AnnotationKind {
+    Region,
+    Pointer,
+    Highlight,
+}
+
+impl Default for AnnotationKind {
+    fn default() -> Self {
+        AnnotationKind::Region
+    }
+}
+
+/// Border style for an annotation.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum AnnotationStyle {
+    Solid,
+    Dashed,
+}
+
+impl Default for AnnotationStyle {
+    fn default() -> Self {
+        AnnotationStyle::Solid
+    }
+}
+
+/// Bounding-box annotation overlaid onto a step's keyframe.
+///
+/// Coordinates are in **source image pixels** (top-left origin). The viewer
+/// sets SVG `viewBox` to the image's natural dimensions so these values map
+/// 1:1 and scale with the rendered image size.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
+pub struct Annotation {
+    /// `[x, y, width, height]` in source image pixels.
+    pub bbox: [u32; 4],
+    /// Short human-readable label (rendered as a pill in the lightbox).
+    pub label: String,
+    /// Optional color (hex, e.g. `#f38ba8`). Falls back to a Catppuccin palette.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
+    /// Border style (default: solid).
+    #[serde(default, skip_serializing_if = "is_default_style")]
+    pub style: AnnotationStyle,
+    /// Longer hover tooltip.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    /// Annotation kind (default: region).
+    #[serde(default, skip_serializing_if = "is_default_kind")]
+    pub kind: AnnotationKind,
+}
+
+fn is_default_style(s: &AnnotationStyle) -> bool {
+    *s == AnnotationStyle::Solid
+}
+
+fn is_default_kind(k: &AnnotationKind) -> bool {
+    *k == AnnotationKind::Region
+}
+
 /// A single step (keyframe) in a journey.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Step {
@@ -58,6 +121,10 @@ pub struct Step {
     pub judge_score: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub assertions: Option<StepAssertions>,
+    /// Optional bounding-box annotations (ground truth for VLM labeling +
+    /// rendered as overlays in the docs lightbox).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub annotations: Option<Vec<Annotation>>,
 }
 
 /// Verification payload added by `phenotype-journey verify`.
@@ -173,6 +240,7 @@ mod tests {
                     description: None,
                     judge_score: None,
                     assertions: None,
+                    annotations: None,
                 },
                 Step {
                     index: 1,
@@ -182,6 +250,7 @@ mod tests {
                     description: None,
                     judge_score: None,
                     assertions: None,
+                    annotations: None,
                 },
             ],
             verification: None,
@@ -203,6 +272,56 @@ mod tests {
         let m = sample_manifest();
         let value = serde_json::to_value(&m).unwrap();
         validate_manifest(&value).expect("sample manifest must validate");
+    }
+
+    #[test]
+    fn annotations_roundtrip() {
+        let a = Annotation {
+            bbox: [10, 20, 100, 28],
+            label: "MLA".into(),
+            color: Some("#f38ba8".into()),
+            style: AnnotationStyle::Dashed,
+            note: Some("Multi-Head Latent Attention".into()),
+            kind: AnnotationKind::Highlight,
+        };
+        let s = serde_json::to_string(&a).unwrap();
+        let back: Annotation = serde_json::from_str(&s).unwrap();
+        assert_eq!(a, back);
+    }
+
+    #[test]
+    fn annotation_defaults_elided() {
+        // Minimal annotation: only bbox + label; default style/kind must be skipped.
+        let a = Annotation {
+            bbox: [0, 0, 10, 10],
+            label: "x".into(),
+            color: None,
+            style: AnnotationStyle::Solid,
+            note: None,
+            kind: AnnotationKind::Region,
+        };
+        let s = serde_json::to_string(&a).unwrap();
+        assert!(!s.contains("style"), "default style must be skipped: {s}");
+        assert!(!s.contains("kind"), "default kind must be skipped: {s}");
+        let back: Annotation = serde_json::from_str(&s).unwrap();
+        assert_eq!(a, back);
+    }
+
+    #[test]
+    fn step_with_annotations_roundtrip() {
+        let mut m = sample_manifest();
+        m.steps[0].annotations = Some(vec![Annotation {
+            bbox: [120, 340, 180, 28],
+            label: "MLA".into(),
+            color: Some("#f38ba8".into()),
+            style: AnnotationStyle::Solid,
+            note: None,
+            kind: AnnotationKind::Region,
+        }]);
+        let v = serde_json::to_value(&m).unwrap();
+        validate_manifest(&v).expect("schema allows annotations");
+        let back: Manifest = serde_json::from_value(v).unwrap();
+        assert_eq!(back.steps[0].annotations.as_ref().unwrap().len(), 1);
     }
 
     #[test]
