@@ -148,22 +148,36 @@ fn keyframe_path(artefacts_root: &Path, journey_id: &str, step: &Step) -> PathBu
 
 fn snippet(text: &str, max: usize) -> String {
     let collapsed: String = text.chars().map(|c| if c == '\n' { ' ' } else { c }).collect();
-    if collapsed.len() <= max {
+    if collapsed.chars().count() <= max {
         collapsed
     } else {
-        format!("{}…", &collapsed[..max])
+        let truncated: String = collapsed.chars().take(max).collect();
+        format!("{truncated}…")
     }
 }
 
 fn find_snippet(text: &str, needle: &str, pad: usize) -> String {
     if let Some(idx) = text.find(needle) {
-        let start = idx.saturating_sub(pad);
-        let end = (idx + needle.len() + pad).min(text.len());
-        let slice = &text[start..end];
-        slice.replace('\n', " ")
+        let start = floor_char_boundary(text, idx.saturating_sub(pad));
+        let end = ceil_char_boundary(text, (idx + needle.len() + pad).min(text.len()));
+        text[start..end].replace('\n', " ")
     } else {
         snippet(text, 160)
     }
+}
+
+fn floor_char_boundary(s: &str, mut idx: usize) -> usize {
+    while idx > 0 && !s.is_char_boundary(idx) {
+        idx -= 1;
+    }
+    idx
+}
+
+fn ceil_char_boundary(s: &str, mut idx: usize) -> usize {
+    while idx < s.len() && !s.is_char_boundary(idx) {
+        idx += 1;
+    }
+    idx
 }
 
 /// Invoke the OCR command on a single PNG and return the decoded text.
