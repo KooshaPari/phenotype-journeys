@@ -31,8 +31,33 @@
         "intent": { "type": "string" },
         "screenshot_path": { "type": "string" },
         "description": { "type": ["string", "null"] },
-        "judge_score": { "type": ["number", "null"] }
+        "judge_score": { "type": ["number", "null"] },
+        "assertions": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/StepAssertions" }]
+        }
       }
+    },
+    "StepAssertions": {
+      "type": "object",
+      "description": "Optional ground-truth assertions applied to a step's keyframe via OCR.",
+      "properties": {
+        "must_contain": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "must_not_contain": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "expected_exit": {
+          "type": ["integer", "null"],
+          "description": "If set, the LAST keyframe of the journey must contain `__EXIT_<N>__`."
+        },
+        "ocr_required": { "type": "boolean", "default": false }
+      },
+      "additionalProperties": false
     },
     "Verification": {
       "type": "object",
@@ -50,7 +75,22 @@
         "judge_confidence": { "type": "number" },
         "all_intents_passed": { "type": "boolean" },
         "mode": { "type": "string", "enum": ["mock", "api"] },
-        "timestamp": { "type": "string", "format": "date-time" }
+        "timestamp": { "type": "string", "format": "date-time" },
+        "assertion_violations": {
+          "type": "array",
+          "default": [],
+          "items": { "$ref": "#/$defs/Violation" }
+        }
+      }
+    },
+    "Violation": {
+      "type": "object",
+      "required": ["step_index", "kind", "expected", "got_snippet"],
+      "properties": {
+        "step_index": { "type": "integer", "minimum": 0 },
+        "kind": { "type": "string", "enum": ["MustContain", "MustNotContain", "ExitCode"] },
+        "expected": { "type": "string" },
+        "got_snippet": { "type": "string" }
       }
     }
   }

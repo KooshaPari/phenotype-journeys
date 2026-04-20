@@ -64,6 +64,72 @@ phenotype-journey sync --from journeys --to docs/public/journeys
 Set `ANTHROPIC_API_KEY` and pass `--live` (requires building with
 `--features live`) to call real Claude for describe + judge passes.
 
+## Ground-truth assertions (`phenotype-journey assert`)
+
+Claude-judge alone is soft. A tape can literally display
+`error: unexpected argument` and still pass if the judge hallucinates. The
+`assert` subcommand adds hard gates that fail the build when frame content is
+wrong.
+
+### Dependencies
+
+- `tesseract` CLI — install with `brew install tesseract` (macOS) or
+  `apt-get install tesseract-ocr` (Debian). **No silent skip**: if tesseract
+  is missing the command exits non-zero with a clear message.
+- Override OCR for tests or custom pipelines via
+  `PHENOTYPE_JOURNEY_OCR_CMD="my-ocr {{PATH}}"` (the `{{PATH}}` token is
+  replaced with the PNG path).
+
+### Intents YAML schema extension
+
+Each step may carry an `assertions` block:
+
+```yaml
+journey: traceability-report
+steps:
+  - index: 1
+    intent: "Command typed: cargo run ..."
+    assertions:
+      must_contain: ["cargo run", "hwledger-traceability"]
+      must_not_contain: ["error:", "unexpected argument"]
+      ocr_required: true
+  - index: 8
+    intent: "Integer row-count returned"
+    assertions:
+      expected_exit: 0
+```
+
+- `must_contain` — every listed substring must appear in the OCR of that
+  step's keyframe.
+- `must_not_contain` — none of the listed substrings may appear.
+- `expected_exit` — the LAST keyframe of the journey must include the
+  sentinel `__EXIT_<N>__`.
+- `ocr_required` — reserved for future "OCR must succeed" gating; default
+  inferred from the presence of contain/not_contain lists.
+
+### Exit-code sentinel (canonical tape pattern)
+
+Wrap the final command in the tape so the sentinel lands in the recording:
+
+```vhs
+Type "hwledger plan --help; echo __EXIT_$?__"
+Enter
+Sleep 500ms
+```
+
+This produces a visible `__EXIT_0__` (or `__EXIT_N__`) in the last frame that
+`phenotype-journey assert` can OCR and gate on.
+
+### Usage
+
+```bash
+phenotype-journey assert apps/cli-journeys/manifests/plan-deepseek/manifest.json --strict
+```
+
+With `--strict`, exits non-zero when any assertion is violated. Without, the
+report prints but the process exits 0. Journeys with zero assertions print a
+loud warning so they cannot hide.
+
 ## Repo layout
 
 ```
