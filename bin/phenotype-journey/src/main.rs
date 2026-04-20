@@ -1,9 +1,14 @@
 use anyhow::{Context, Result};
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use phenotype_journey_core::{
     assertions::{run_on_manifest, AssertionReport, ViolationKind},
-    manifest_schema, validate_manifest, verify_manifest, Manifest, Step, StepAssertions,
-    VerifyMode,
+    manifest_schema,
+    pipeline::{
+        extract_keyframes, record_all, sync_artefacts, verify_all, ExtractOptions, RecordOptions,
+        SyncKind, SyncOptions, VerifyBackend, VerifyOptions,
+    },
+    validate_manifest, verify_manifest, Annotation, AnnotationKind, AnnotationStyle, Manifest,
+    Step, StepAssertions, VerifyMode,
 };
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
@@ -17,29 +22,90 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Cmd {
-    /// Record a VHS tape and emit a journey manifest stub.
+    /// Record a single VHS tape and emit a journey manifest stub.
     Record {
         #[arg(long)]
-        tape: PathBuf,
-        /// Output directory for recording + keyframes.
+        tape: Option<PathBuf>,
+        /// Output directory for a single recording.
         #[arg(long, default_value = "./out")]
         out: PathBuf,
+        /// Batch mode: record every `*.tape` under this dir and emit
+        /// `record-summary.json`. Replaces `record-all.sh`.
+        #[arg(long)]
+        tapes_dir: Option<PathBuf>,
+        /// Output dir for batch-mode recordings (*.gif + *.mp4).
+        #[arg(long)]
+        recordings_dir: Option<PathBuf>,
+        /// Batch-mode tape filter (basename, no extension).
+        #[arg(long, value_name = "NAME")]
+        only: Option<String>,
+        /// Max concurrent tapes (default 1 — VHS serialises on PTY).
+        #[arg(long, default_value_t = 1)]
+        parallel: usize,
+        /// Working directory for `vhs` invocations (tapes use relative paths).
+        #[arg(long)]
+        cwd: Option<PathBuf>,
+        /// Extra PATH entries (colon-separated) prepended for `vhs`.
+        #[arg(long, value_delimiter = ':')]
+        path_prepend: Vec<PathBuf>,
+        /// Where to write `record-summary.json` (default: `<tapes_dir>/..` root).
+        #[arg(long)]
+        summary_path: Option<PathBuf>,
     },
-    /// Run Claude describe+judge verification on an existing manifest.
+    /// Extract keyframes from one or all MP4 recordings. Replaces
+    /// `extract-keyframes.sh`. Always clears stale frames before extracting.
+    ExtractKeyframes {
+        #[arg(long)]
+        recordings_dir: PathBuf,
+        #[arg(long)]
+        keyframes_dir: PathBuf,
+        /// Limit to one tape (basename, no extension).
+        #[arg(long)]
+        tape: Option<String>,
+        /// Fallback threshold — if fewer I-frames than this are found, switch
+        /// to 1 fps sampling.
+        #[arg(long, default_value_t = 3)]
+        min_iframes: usize,
+    },
+    /// Run Claude describe+judge verification on an existing manifest (single file)
+    /// or a full manifests/ tree (batch mode, replaces verify-manifests.sh).
     Verify {
-        manifest: PathBuf,
+        /// Single-manifest mode: path to manifest.json.
+        manifest: Option<PathBuf>,
         /// Force live Anthropic API (requires ANTHROPIC_API_KEY and `live` feature at build time).
         #[arg(long)]
         live: bool,
+
+        // --- Batch mode (replaces verify-manifests.sh) ---
+        /// Batch: directory containing `<journey>/manifest.json` subdirs.
+        #[arg(long)]
+        manifests_dir: Option<PathBuf>,
+        /// Batch: tapes dir (for `<journey>.intents.yaml` overlay).
+        #[arg(long)]
+        tapes_dir: Option<PathBuf>,
+        /// Batch: artefacts root (where `keyframes/<journey>/` lives).
+        #[arg(long)]
+        artefacts: Option<PathBuf>,
+        /// Batch: force mock backend (built-in canned responder). Default if
+        /// ANTHROPIC_API_KEY is unset.
+        #[arg(long)]
+        mock: bool,
+        /// Batch: force real Anthropic API backend.
+        #[arg(long)]
+        api: bool,
     },
     /// Validate a manifest against the canonical JSONSchema.
     Validate { manifest: PathBuf },
-    /// Sync journey artefacts from a recording dir into a docs public dir.
+    /// Sync journey/doc artefacts from a source dir into a destination dir.
+    /// Replaces docs-site sync-*.sh scripts.
     Sync {
         #[arg(long)]
         from: PathBuf,
         #[arg(long)]
         to: PathBuf,
+        /// Sync preset. `auto` inspects the source layout.
+        #[arg(long, value_enum, default_value_t = CliSyncKind::Auto)]
+        kind: CliSyncKind,
     },
     /// Emit the canonical JSONSchema for manifests.
     Schema,
@@ -62,15 +128,116 @@ enum Cmd {
         #[arg(long)]
         strict: bool,
     },
+    /// Auto-generate bounding-box annotations for every keyframe in a manifest.
+    ///
+    /// `tesseract` mode runs `tesseract <frame> - tsv` and emits one annotation
+    /// per detected text region (line-level by default, or per-word with
+    /// `--ocr-words`). `vlm` mode is a stub for future Anthropic-vision calls.
+    Annotate {
+        manifest: PathBuf,
+        /// Annotation provider.
+        #[arg(long, value_enum, default_value_t = AnnotateProvider::Tesseract)]
+        provider: AnnotateProvider,
+        /// Emit one annotation per WORD (noisier); default is per-line.
+        #[arg(long)]
+        ocr_words: bool,
+        /// Artefacts root containing `keyframes/<journey>/frame-*.png`.
+        /// Defaults to the manifest's parent-of-parent-of-parent.
+        #[arg(long)]
+        artefacts: Option<PathBuf>,
+        /// Minimum tesseract confidence (0-100) to keep an annotation.
+        #[arg(long, default_value_t = 60)]
+        min_conf: i32,
+        /// Where to write annotations.
+        #[arg(long, value_enum, default_value_t = AnnotateTarget::Stdout)]
+        to: AnnotateTarget,
+        /// When `--to yaml`, the intents YAML to merge into.
+        /// Default: `<artefacts>/tapes/<journey>.intents.yaml`.
+        #[arg(long)]
+        yaml: Option<PathBuf>,
+    },
+}
+
+#[derive(Copy, Clone, Debug, ValueEnum, PartialEq, Eq)]
+enum AnnotateProvider {
+    Tesseract,
+    Vlm,
+}
+
+#[derive(Copy, Clone, Debug, ValueEnum, PartialEq, Eq)]
+enum AnnotateTarget {
+    /// Print the annotated manifest JSON to stdout.
+    Stdout,
+    /// Rewrite `manifest.verified.json` sibling to the input manifest.
+    Manifest,
+    /// Merge back into the intents YAML (Path-A authoring).
+    Yaml,
+}
+
+#[derive(Copy, Clone, Debug, ValueEnum)]
+enum CliSyncKind {
+    CliJourneys,
+    GuiJourneys,
+    StreamlitJourneys,
+    Adrs,
+    Research,
+    Auto,
+}
+
+impl From<CliSyncKind> for SyncKind {
+    fn from(k: CliSyncKind) -> Self {
+        match k {
+            CliSyncKind::CliJourneys => SyncKind::CliJourneys,
+            CliSyncKind::GuiJourneys => SyncKind::GuiJourneys,
+            CliSyncKind::StreamlitJourneys => SyncKind::StreamlitJourneys,
+            CliSyncKind::Adrs => SyncKind::Adrs,
+            CliSyncKind::Research => SyncKind::Research,
+            CliSyncKind::Auto => SyncKind::Auto,
+        }
+    }
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Cmd::Record { tape, out } => cmd_record(tape, out),
-        Cmd::Verify { manifest, live } => cmd_verify(manifest, live),
+        Cmd::Record {
+            tape,
+            out,
+            tapes_dir,
+            recordings_dir,
+            only,
+            parallel,
+            cwd,
+            path_prepend,
+            summary_path,
+        } => cmd_record_dispatch(
+            tape,
+            out,
+            tapes_dir,
+            recordings_dir,
+            only,
+            parallel,
+            cwd,
+            path_prepend,
+            summary_path,
+        ),
+        Cmd::ExtractKeyframes {
+            recordings_dir,
+            keyframes_dir,
+            tape,
+            min_iframes,
+        } => cmd_extract_keyframes(recordings_dir, keyframes_dir, tape, min_iframes),
+        Cmd::Verify {
+            manifest,
+            live,
+            manifests_dir,
+            tapes_dir,
+            artefacts,
+            mock,
+            api,
+        } => cmd_verify_dispatch(manifest, live, manifests_dir, tapes_dir, artefacts, mock, api),
         Cmd::Validate { manifest } => cmd_validate(manifest),
-        Cmd::Sync { from, to } => cmd_sync(from, to),
+        Cmd::Sync { from, to, kind } => cmd_sync(from, to, kind.into()),
         Cmd::Schema => cmd_schema(),
         Cmd::Assert {
             manifest,
@@ -78,6 +245,137 @@ fn main() -> Result<()> {
             intents,
             strict,
         } => cmd_assert(manifest, artefacts, intents, strict),
+        Cmd::Annotate {
+            manifest,
+            provider,
+            ocr_words,
+            artefacts,
+            min_conf,
+            to,
+            yaml,
+        } => cmd_annotate(manifest, provider, ocr_words, artefacts, min_conf, to, yaml),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn cmd_record_dispatch(
+    tape: Option<PathBuf>,
+    out: PathBuf,
+    tapes_dir: Option<PathBuf>,
+    recordings_dir: Option<PathBuf>,
+    only: Option<String>,
+    parallel: usize,
+    cwd: Option<PathBuf>,
+    path_prepend: Vec<PathBuf>,
+    summary_path: Option<PathBuf>,
+) -> Result<()> {
+    if let Some(tapes) = tapes_dir {
+        let recordings = recordings_dir
+            .ok_or_else(|| anyhow::anyhow!("--recordings-dir required with --tapes-dir"))?;
+        let opts = RecordOptions {
+            tapes_dir: tapes.clone(),
+            recordings_dir: recordings,
+            tape: only,
+            cwd,
+            parallel,
+            extra_path: path_prepend,
+        };
+        let summary = record_all(&opts).with_context(|| "record_all failed")?;
+        let default_summary = tapes
+            .parent()
+            .map(|p| p.join("record-summary.json"))
+            .unwrap_or_else(|| PathBuf::from("record-summary.json"));
+        let dest = summary_path.unwrap_or(default_summary);
+        std::fs::write(&dest, serde_json::to_vec_pretty(&summary)?)?;
+        println!(
+            "Recorded {}/{} tapes ({} failed). Summary: {}",
+            summary.passed,
+            summary.total_tapes,
+            summary.failed,
+            dest.display()
+        );
+        if summary.failed > 0 {
+            anyhow::bail!("{} tape(s) failed to record", summary.failed);
+        }
+        Ok(())
+    } else {
+        let tape = tape.ok_or_else(|| anyhow::anyhow!("--tape or --tapes-dir required"))?;
+        cmd_record(tape, out)
+    }
+}
+
+fn cmd_extract_keyframes(
+    recordings_dir: PathBuf,
+    keyframes_dir: PathBuf,
+    tape: Option<String>,
+    min_iframes: usize,
+) -> Result<()> {
+    let opts = ExtractOptions {
+        recordings_dir,
+        keyframes_dir,
+        tape,
+        min_iframes,
+    };
+    let results = extract_keyframes(&opts)?;
+    for r in &results {
+        println!(
+            "  {}: {} keyframes{}",
+            r.tape,
+            r.keyframes,
+            if r.used_fallback { " (1fps fallback)" } else { "" }
+        );
+    }
+    println!("Keyframe extraction complete: {} tape(s)", results.len());
+    Ok(())
+}
+
+fn cmd_verify_dispatch(
+    manifest: Option<PathBuf>,
+    live: bool,
+    manifests_dir: Option<PathBuf>,
+    tapes_dir: Option<PathBuf>,
+    artefacts: Option<PathBuf>,
+    mock: bool,
+    api: bool,
+) -> Result<()> {
+    if let Some(mdir) = manifests_dir {
+        let tapes = tapes_dir
+            .ok_or_else(|| anyhow::anyhow!("--tapes-dir required with --manifests-dir"))?;
+        let art = artefacts
+            .or_else(|| mdir.parent().map(|p| p.to_path_buf()))
+            .ok_or_else(|| anyhow::anyhow!("could not derive --artefacts root"))?;
+        let backend = if api {
+            VerifyBackend::Api
+        } else if mock {
+            VerifyBackend::Mock
+        } else if std::env::var("ANTHROPIC_API_KEY").is_ok() {
+            eprintln!("Using real Anthropic API (ANTHROPIC_API_KEY is set)");
+            VerifyBackend::Api
+        } else {
+            eprintln!("ANTHROPIC_API_KEY not set; using built-in mock");
+            VerifyBackend::Mock
+        };
+        let opts = VerifyOptions {
+            manifests_dir: mdir,
+            tapes_dir: tapes,
+            artefacts_root: art,
+            backend,
+        };
+        let r = verify_all(&opts)?;
+        println!(
+            "Verification complete: {}/{} passed ({} failed)",
+            r.total - r.failed,
+            r.total,
+            r.failed
+        );
+        if r.failed > 0 {
+            anyhow::bail!("{} journey(s) failed verification", r.failed);
+        }
+        Ok(())
+    } else {
+        let mpath =
+            manifest.ok_or_else(|| anyhow::anyhow!("either `manifest` or --manifests-dir required"))?;
+        cmd_verify(mpath, live)
     }
 }
 
@@ -114,24 +412,11 @@ fn cmd_validate(path: PathBuf) -> Result<()> {
     Ok(())
 }
 
-fn cmd_sync(from: PathBuf, to: PathBuf) -> Result<()> {
+fn cmd_sync(from: PathBuf, to: PathBuf, kind: SyncKind) -> Result<()> {
     anyhow::ensure!(from.is_dir(), "--from must be a directory: {}", from.display());
-    std::fs::create_dir_all(&to)?;
-    let mut count = 0usize;
-    for entry in walk(&from)? {
-        let rel = entry.strip_prefix(&from).unwrap();
-        let dst = to.join(rel);
-        if entry.is_dir() {
-            std::fs::create_dir_all(&dst)?;
-        } else {
-            if let Some(p) = dst.parent() {
-                std::fs::create_dir_all(p)?;
-            }
-            std::fs::copy(&entry, &dst)?;
-            count += 1;
-        }
-    }
-    println!("synced {} files -> {}", count, to.display());
+    let opts = SyncOptions { from, to: to.clone(), kind };
+    let n = sync_artefacts(&opts)?;
+    println!("Synced {} items to {}", n, to.display());
     Ok(())
 }
 
@@ -263,6 +548,355 @@ fn find_step_mut(steps: &mut [Step], index: u32) -> Option<&mut Step> {
     steps.iter_mut().find(|s| s.index == index)
 }
 
+// ---------------------------------------------------------------------------
+// annotate (Path-B: auto-generation from OCR / VLM)
+// ---------------------------------------------------------------------------
+
+/// Catppuccin Macchiato palette cycled per-annotation when the caller doesn't
+/// specify a color. Matches the docs-site theme.
+const PALETTE: &[&str] = &[
+    "#f38ba8", // red
+    "#a6e3a1", // green
+    "#f9e2af", // yellow
+    "#89b4fa", // blue
+    "#cba6f7", // mauve
+    "#94e2d5", // teal
+    "#fab387", // peach
+];
+
+fn cmd_annotate(
+    manifest_path: PathBuf,
+    provider: AnnotateProvider,
+    ocr_words: bool,
+    artefacts: Option<PathBuf>,
+    min_conf: i32,
+    to: AnnotateTarget,
+    yaml: Option<PathBuf>,
+) -> Result<()> {
+    if provider == AnnotateProvider::Vlm {
+        // TODO(vlm): wire up Anthropic vision API here. Agent data-labeling
+        // pipelines plug in via this subcommand; the tesseract baseline
+        // provides initial regions that the VLM can refine/label.
+        anyhow::bail!(
+            "vlm provider is not yet implemented (tracked: phenotype-journeys#annotate-vlm)"
+        );
+    }
+
+    let raw = std::fs::read_to_string(&manifest_path)
+        .with_context(|| format!("read {}", manifest_path.display()))?;
+    let mut manifest: Manifest = serde_json::from_str(&raw)?;
+
+    let artefacts_root = match artefacts {
+        Some(p) => p,
+        None => manifest_path
+            .parent()
+            .and_then(|p| p.parent())
+            .and_then(|p| p.parent())
+            .map(|p| p.to_path_buf())
+            .ok_or_else(|| anyhow::anyhow!("could not derive artefacts root; pass --artefacts"))?,
+    };
+
+    let level = if ocr_words { TsvLevel::Word } else { TsvLevel::Line };
+
+    let steps_len = manifest.steps.len();
+    for step in manifest.steps.iter_mut() {
+        let frame = artefacts_root
+            .join("keyframes")
+            .join(&manifest.id)
+            .join(&step.screenshot_path);
+        if !frame.exists() {
+            eprintln!(
+                "warn: skipping step {}: keyframe {} not found",
+                step.index,
+                frame.display()
+            );
+            continue;
+        }
+        let anns = tesseract_annotate(&frame, level, min_conf)
+            .with_context(|| format!("tesseract on {}", frame.display()))?;
+        if !anns.is_empty() {
+            step.annotations = Some(anns);
+        }
+    }
+
+    match to {
+        AnnotateTarget::Stdout => {
+            println!("{}", serde_json::to_string_pretty(&manifest)?);
+        }
+        AnnotateTarget::Manifest => {
+            let target = manifest_path
+                .parent()
+                .map(|p| p.join("manifest.verified.json"))
+                .unwrap_or_else(|| PathBuf::from("manifest.verified.json"));
+            std::fs::write(&target, serde_json::to_vec_pretty(&manifest)?)?;
+            eprintln!("wrote {}", target.display());
+        }
+        AnnotateTarget::Yaml => {
+            let yaml_path = yaml.unwrap_or_else(|| {
+                artefacts_root
+                    .join("tapes")
+                    .join(format!("{}.intents.yaml", manifest.id))
+            });
+            merge_annotations_into_yaml(&yaml_path, &manifest)
+                .with_context(|| format!("merge into {}", yaml_path.display()))?;
+            eprintln!("merged annotations into {}", yaml_path.display());
+        }
+    }
+
+    eprintln!(
+        "annotated {} keyframes via tesseract ({} level, min_conf={})",
+        steps_len,
+        if ocr_words { "word" } else { "line" },
+        min_conf
+    );
+    Ok(())
+}
+
+#[derive(Copy, Clone)]
+enum TsvLevel {
+    Word,
+    Line,
+}
+
+/// Run `tesseract <frame> - tsv` and synthesise annotations from the TSV
+/// output. Tesseract's TSV schema:
+///
+///     level page_num block_num par_num line_num word_num left top width height conf text
+///
+/// `level` codes: 1=page 2=block 3=par 4=line 5=word. We aggregate
+/// word-level rows into their parent line when `TsvLevel::Line` is selected
+/// (tesseract does not emit a line-level bbox directly in TSV; we union the
+/// word bboxes per (block,par,line) triple).
+fn tesseract_annotate(
+    frame: &Path,
+    level: TsvLevel,
+    min_conf: i32,
+) -> Result<Vec<Annotation>> {
+    let out = std::process::Command::new("tesseract")
+        .arg(frame)
+        .arg("-")
+        .arg("tsv")
+        .output()
+        .with_context(|| "failed to invoke `tesseract` — install with `brew install tesseract`")?;
+    if !out.status.success() {
+        anyhow::bail!(
+            "tesseract exited non-zero on {}: {}",
+            frame.display(),
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+    let tsv = String::from_utf8_lossy(&out.stdout);
+    parse_tesseract_tsv(&tsv, level, min_conf)
+}
+
+/// Pure-function TSV parser (exposed for tests — private helper).
+fn parse_tesseract_tsv(tsv: &str, level: TsvLevel, min_conf: i32) -> Result<Vec<Annotation>> {
+    let mut lines = tsv.lines();
+    let header = lines.next().unwrap_or("");
+    // Accept either tab- or whitespace-separated header.
+    if !header.starts_with("level") {
+        // Non-TSV output (e.g. plain text fallback). Return empty.
+        return Ok(Vec::new());
+    }
+
+    // (block, par, line) -> (x0, y0, x1, y1, words)
+    use std::collections::BTreeMap;
+    let mut lines_map: BTreeMap<(i32, i32, i32), (i32, i32, i32, i32, Vec<String>)> =
+        BTreeMap::new();
+    let mut words: Vec<Annotation> = Vec::new();
+    let mut palette_idx: usize = 0;
+
+    for row in lines {
+        let cols: Vec<&str> = row.split('\t').collect();
+        if cols.len() < 12 {
+            continue;
+        }
+        let lvl: i32 = cols[0].parse().unwrap_or(0);
+        if lvl != 5 {
+            continue; // only word rows carry text + bbox.
+        }
+        let block: i32 = cols[2].parse().unwrap_or(0);
+        let par: i32 = cols[3].parse().unwrap_or(0);
+        let line: i32 = cols[4].parse().unwrap_or(0);
+        let left: i32 = cols[6].parse().unwrap_or(0);
+        let top: i32 = cols[7].parse().unwrap_or(0);
+        let width: i32 = cols[8].parse().unwrap_or(0);
+        let height: i32 = cols[9].parse().unwrap_or(0);
+        // Newer tesseract versions emit floats (e.g. `93.277351`) in the conf
+        // column; older versions emit integers. Accept both via f32.
+        let conf: i32 = cols[10].parse::<f32>().map(|f| f as i32).unwrap_or(-1);
+        let text = cols[11].trim().to_string();
+        if text.is_empty() || conf < min_conf || width <= 0 || height <= 0 {
+            continue;
+        }
+
+        match level {
+            TsvLevel::Word => {
+                words.push(Annotation {
+                    bbox: [
+                        left.max(0) as u32,
+                        top.max(0) as u32,
+                        width as u32,
+                        height as u32,
+                    ],
+                    label: text,
+                    color: Some(PALETTE[palette_idx % PALETTE.len()].to_string()),
+                    style: AnnotationStyle::Solid,
+                    note: Some(format!("tesseract conf={conf}")),
+                    kind: AnnotationKind::Highlight,
+                });
+                palette_idx += 1;
+            }
+            TsvLevel::Line => {
+                let entry =
+                    lines_map.entry((block, par, line)).or_insert((
+                        i32::MAX,
+                        i32::MAX,
+                        0,
+                        0,
+                        Vec::new(),
+                    ));
+                entry.0 = entry.0.min(left);
+                entry.1 = entry.1.min(top);
+                entry.2 = entry.2.max(left + width);
+                entry.3 = entry.3.max(top + height);
+                entry.4.push(text);
+            }
+        }
+    }
+
+    if matches!(level, TsvLevel::Line) {
+        for (_, (x0, y0, x1, y1, ws)) in lines_map {
+            let label = ws.join(" ");
+            if label.is_empty() {
+                continue;
+            }
+            let w = (x1 - x0).max(1);
+            let h = (y1 - y0).max(1);
+            words.push(Annotation {
+                bbox: [x0.max(0) as u32, y0.max(0) as u32, w as u32, h as u32],
+                label: truncate(&label, 64),
+                color: Some(PALETTE[palette_idx % PALETTE.len()].to_string()),
+                style: AnnotationStyle::Solid,
+                note: Some(format!("tesseract line: {label}")),
+                kind: AnnotationKind::Region,
+            });
+            palette_idx += 1;
+        }
+    }
+
+    Ok(words)
+}
+
+fn truncate(s: &str, max: usize) -> String {
+    if s.chars().count() <= max {
+        s.to_string()
+    } else {
+        let t: String = s.chars().take(max - 1).collect();
+        format!("{t}…")
+    }
+}
+
+/// Merge a manifest's newly-generated annotations back into the intents YAML,
+/// preserving existing keys. Non-destructive: only replaces the `annotations`
+/// key under each matching `index`, and appends new step entries as needed.
+fn merge_annotations_into_yaml(yaml_path: &Path, manifest: &Manifest) -> Result<()> {
+    use serde_yaml::{Mapping, Value};
+
+    let raw = if yaml_path.exists() {
+        std::fs::read_to_string(yaml_path)?
+    } else {
+        format!("journey: {}\nsteps: []\n", manifest.id)
+    };
+    let mut doc: Value = serde_yaml::from_str(&raw).unwrap_or(Value::Mapping(Mapping::new()));
+    if doc.is_null() {
+        doc = Value::Mapping(Mapping::new());
+    }
+    let map = doc.as_mapping_mut().ok_or_else(|| {
+        anyhow::anyhow!("{}: top-level YAML must be a mapping", yaml_path.display())
+    })?;
+
+    // Ensure steps: is a sequence.
+    let steps_key = Value::String("steps".into());
+    let steps_val = map
+        .entry(steps_key.clone())
+        .or_insert(Value::Sequence(Vec::new()));
+    let steps_seq = steps_val
+        .as_sequence_mut()
+        .ok_or_else(|| anyhow::anyhow!("steps: must be a sequence"))?;
+
+    for step in &manifest.steps {
+        let Some(anns) = &step.annotations else {
+            continue;
+        };
+        // Find existing entry with matching index.
+        let found = steps_seq.iter_mut().find(|v| {
+            v.as_mapping()
+                .and_then(|m| m.get(&Value::String("index".into())))
+                .and_then(|v| v.as_u64())
+                .map(|u| u as u32 == step.index)
+                .unwrap_or(false)
+        });
+        let ann_yaml: Value = serde_yaml::to_value(anns)?;
+        if let Some(existing) = found {
+            let m = existing.as_mapping_mut().unwrap();
+            m.insert(Value::String("annotations".into()), ann_yaml);
+        } else {
+            let mut new = Mapping::new();
+            new.insert(Value::String("index".into()), Value::Number(step.index.into()));
+            new.insert(Value::String("intent".into()), Value::String(step.intent.clone()));
+            new.insert(Value::String("annotations".into()), ann_yaml);
+            steps_seq.push(Value::Mapping(new));
+        }
+    }
+
+    let out = serde_yaml::to_string(&doc)?;
+    std::fs::write(yaml_path, out)?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod annotate_tests {
+    use super::*;
+
+    #[test]
+    fn parse_tsv_line_level_unions_words() {
+        let tsv = "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext\n\
+                   5\t1\t1\t1\t1\t1\t10\t20\t30\t15\t95\thello\n\
+                   5\t1\t1\t1\t1\t2\t45\t20\t25\t15\t90\tworld\n\
+                   5\t1\t1\t1\t2\t1\t10\t40\t50\t15\t88\tfoo";
+        let anns = parse_tesseract_tsv(tsv, TsvLevel::Line, 60).unwrap();
+        assert_eq!(anns.len(), 2);
+        // First line: x=10, y=20, spans to x=70, y=35 => 60 x 15.
+        assert_eq!(anns[0].bbox, [10, 20, 60, 15]);
+        assert_eq!(anns[0].label, "hello world");
+        // Second line: single "foo".
+        assert_eq!(anns[1].bbox, [10, 40, 50, 15]);
+    }
+
+    #[test]
+    fn parse_tsv_word_level_keeps_all() {
+        let tsv = "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext\n\
+                   5\t1\t1\t1\t1\t1\t10\t20\t30\t15\t95\thello\n\
+                   5\t1\t1\t1\t1\t2\t45\t20\t25\t15\t90\tworld";
+        let anns = parse_tesseract_tsv(tsv, TsvLevel::Word, 60).unwrap();
+        assert_eq!(anns.len(), 2);
+        assert_eq!(anns[0].label, "hello");
+        assert_eq!(anns[1].label, "world");
+    }
+
+    #[test]
+    fn parse_tsv_skips_low_confidence() {
+        let tsv = "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext\n\
+                   5\t1\t1\t1\t1\t1\t10\t20\t30\t15\t95\tkeep\n\
+                   5\t1\t1\t1\t2\t1\t10\t40\t30\t15\t10\tdrop";
+        let anns = parse_tesseract_tsv(tsv, TsvLevel::Line, 60).unwrap();
+        assert_eq!(anns.len(), 1);
+        assert_eq!(anns[0].label, "keep");
+    }
+}
+
+#[allow(dead_code)]
 fn walk(root: &std::path::Path) -> Result<Vec<PathBuf>> {
     let mut out = Vec::new();
     let mut stack = vec![root.to_path_buf()];

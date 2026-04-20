@@ -13,7 +13,6 @@
 //! Everything here is domain-agnostic — hwLedger just passes absolute paths
 //! into these functions via the `phenotype-journey` CLI.
 
-use crate::agreement;
 use crate::assertions::{run_on_manifest, Violation};
 use crate::{JourneyError, Manifest, Step, StepAssertions};
 use serde::{Deserialize, Serialize};
@@ -496,37 +495,6 @@ fn verify_one(manifest_path: &Path, opts: &VerifyOptions) -> Result<VerifyJourne
         traces_to = parsed.traces_to;
     }
 
-    // Blind-describe pass: the Claude-describe agent never receives the
-    // author's `intent` — it only looks at the keyframe. In mock mode we
-    // synthesize a plausible blind description per step so the docs UI can
-    // always render the intent/blind pair. In api mode the live describe
-    // call (see crate::verify::live) is the source of truth; mock is the
-    // deterministic fallback when running offline or in CI.
-    // Resolve the agreement backend once per project() call so the Python
-    // import probe (SigLIP / sentence-transformers) runs at most once.
-    let agreement_backend = agreement::backend_from_env();
-    for step in manifest.steps.iter_mut() {
-        if step.blind_description.is_none() {
-            step.blind_description = Some(synthesize_blind_description(&step.slug, step.index));
-        }
-        // Bake the agreement report so the viewer can render the chip
-        // (🟢/🟡/🔴 + overlap%/raw score) and the diff panel without
-        // re-tokenising the caption client-side. Recomputed every verify
-        // pass. The backend is logged on the report so the UI tooltip can
-        // show `SigLIP 0.42` vs `Jaccard 0.0` vs `Sentence 0.71`.
-        let blind = step.blind_description.clone().unwrap_or_default();
-        let keyframe = agreement::resolve_keyframe(
-            Some(&opts.artefacts_root),
-            &step.screenshot_path,
-        );
-        step.agreement = Some(agreement::score_with(
-            &agreement_backend,
-            &step.intent,
-            &blind,
-            keyframe.as_deref(),
-        ));
-    }
-
     // Run assertions.
     let report = run_on_manifest(&manifest, &opts.artefacts_root)?;
     let assertions_passed = report.passed;
@@ -604,24 +572,6 @@ fn claude_judge_api(_m: &Manifest) -> Result<(f64, f64, f64), JourneyError> {
 #[cfg(not(feature = "live"))]
 fn claude_judge_api(_m: &Manifest) -> Result<(f64, f64, f64), JourneyError> {
     Err(JourneyError::LiveUnavailable)
-}
-
-/// Deterministic, plausible-looking blind description used when we're running
-/// the mock describe backend (no ANTHROPIC_API_KEY). The generator cycles
-/// through a small set of terminal-screen-shaped sentences so each step gets
-/// something distinct but the output is stable across verifier runs (keeps
-/// the manifests reproducible in CI).
-pub(crate) fn synthesize_blind_description(slug: &str, index: u32) -> String {
-    const TEMPLATES: &[&str] = &[
-        "Terminal showing monospaced output with a block of numeric columns.",
-        "Command-line prompt with recently-emitted lines of hex-coloured log output.",
-        "Dark terminal displaying a table of CLI results and a blinking cursor at the bottom.",
-        "Shell session showing a command header and a paragraph of structured stdout.",
-        "Terminal window with a list-style summary and no visible error indicator.",
-        "Shell prompt displaying the result of a subcommand — multi-line text output.",
-    ];
-    let t = TEMPLATES[(index as usize) % TEMPLATES.len()];
-    format!("{t} (frame slug: {slug})")
 }
 
 // ---------------------------------------------------------------------------
@@ -872,14 +822,12 @@ mod tests {
                 intent: "original".into(),
                 screenshot_path: "noop.png".into(),
                 description: None,
-                blind_description: None,
                 judge_score: None,
                 assertions: Some(StepAssertions {
                     must_contain: vec!["ORIGINAL".into()],
                     ..Default::default()
                 }),
                 annotations: None,
-                agreement: None,
             }],
             verification: None,
         };
@@ -996,14 +944,12 @@ steps: []
                 intent: "t".into(),
                 screenshot_path: "frame-001.png".into(),
                 description: None,
-                blind_description: None,
                 judge_score: None,
                 assertions: Some(StepAssertions {
                     must_contain: vec!["EXPECTED".into()],
                     ..Default::default()
                 }),
                 annotations: None,
-                agreement: None,
             }],
             verification: None,
         };
