@@ -1,6 +1,6 @@
 {
   "name": "@phenotype/journey-viewer",
-  "version": "0.1.3",
+  "version": "0.1.0",
   "description": "Vue 3 components for rendering Phenotype journey manifests in VitePress docs.",
   "license": "Apache-2.0",
   "type": "module",
@@ -11,24 +11,11 @@
     ".": "./src/index.ts",
     "./JourneyViewer.vue": "./src/JourneyViewer.vue",
     "./RecordingEmbed.vue": "./src/RecordingEmbed.vue",
-    "./KeyframeLightbox.vue": "./src/KeyframeLightbox.vue",
-    "./KeyframeGallery.vue": "./src/KeyframeGallery.vue",
-    "./JourneyStep.vue": "./src/JourneyStep.vue",
-    "./JudgeScore.vue": "./src/JudgeScore.vue",
-    "./Shot.vue": "./src/Shot.vue",
-    "./ShotGallery.vue": "./src/ShotGallery.vue",
     "./types": "./src/types.ts"
   },
   "peerDependencies": {
     "vue": "^3.4.0",
     "vitepress": "^1.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/KooshaPari/phenotype-journeys.git"
-  },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
   },
   "files": ["src", "README.md"]
 }

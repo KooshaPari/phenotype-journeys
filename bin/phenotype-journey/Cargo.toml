@@ -10,14 +10,8 @@ description = "CLI for recording, validating, verifying and syncing Phenotype jo
 name = "phenotype-journey"
 path = "src/main.rs"
 
-[features]
-default = []
-vision = ["phenotype-journey-core/vision"]
-
 [dependencies]
 phenotype-journey-core = { path = "../../crates/phenotype-journey-core" }
 clap = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
-serde_yaml = { workspace = true }
-serde = { workspace = true }

@@ -37,7 +37,6 @@ pub fn mock(_manifest: &Manifest) -> Verification {
         all_intents_passed: true,
         mode: "mock".into(),
         timestamp: now_rfc3339(),
-        assertion_violations: Vec::new(),
     }
 }
 
@@ -106,7 +105,6 @@ fn live(manifest: &Manifest) -> Result<Verification, JourneyError> {
         all_intents_passed: true,
         mode: "api".into(),
         timestamp: now_rfc3339(),
-        assertion_violations: Vec::new(),
     })
 }
 
