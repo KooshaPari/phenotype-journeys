@@ -1,0 +1,17 @@
+[package]
+name = "phenotype-journey"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "CLI for recording, validating, verifying and syncing Phenotype journey manifests"
+
+[[bin]]
+name = "phenotype-journey"
+path = "src/main.rs"
+
+[dependencies]
+phenotype-journey-core = { path = "../../crates/phenotype-journey-core" }
+clap = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
