@@ -6,6 +6,26 @@
         {{ manifest.intent || 'Journey demonstration' }}
       </div>
 
+      <div v-if="recordingUrl" class="journey-section journey-recording">
+        <video
+          class="journey-recording-video"
+          :src="recordingUrl"
+          :poster="recordingPoster || undefined"
+          controls
+          preload="metadata"
+          playsinline
+        >
+          <template v-if="recordingGifUrl">
+            Sorry, your browser doesn't support embedded video.
+            <a :href="recordingGifUrl">Watch the animated preview instead.</a>
+          </template>
+        </video>
+        <div class="journey-recording-meta">
+          <a class="journey-recording-link" :href="recordingUrl" target="_blank" rel="noopener">Open MP4 ↗</a>
+          <a v-if="recordingGifUrl" class="journey-recording-link" :href="recordingGifUrl" target="_blank" rel="noopener">Open GIF ↗</a>
+        </div>
+      </div>
+
       <div v-if="enrichedKeyframes.length" class="journey-section">
         <KeyframeGallery
           :keyframes="enrichedKeyframes"
@@ -83,7 +103,9 @@ interface Manifest {
   title: string
   intent: string
   pass: boolean
-  recording: boolean
+  /** legacy bool OR (new) relative mp4 path like `recordings/<id>.mp4` */
+  recording: boolean | string
+  recording_gif?: string
   keyframes?: Array<{ path: string; caption: string; blind_description?: string | null; annotations?: Annotation[] | null }>
   steps?: Array<{
     index?: number
@@ -115,6 +137,31 @@ const manifest = ref<Manifest | null>(null)
  * hwLedger manifests) or from `steps[]` (canonical phenotype-journeys format
  * that only tracks `screenshot_path` per step).
  */
+function resolveAsset(rel: string | undefined | null): string {
+  if (!rel) return ''
+  if (/^https?:|^\//.test(rel)) return rel
+  return manifestUrlBase.value ? `${manifestUrlBase.value}/${rel}` : rel
+}
+
+const recordingUrl = computed(() => {
+  const m = manifest.value
+  if (!m) return ''
+  return typeof m.recording === 'string' ? resolveAsset(m.recording) : ''
+})
+const recordingGifUrl = computed(() => resolveAsset(manifest.value?.recording_gif))
+const recordingPoster = computed(() => {
+  const m = manifest.value
+  if (!m) return ''
+  // Prefer the first keyframe as poster; fall back to GIF.
+  const firstKf = (m.keyframes && m.keyframes[0]?.path)
+    || (m.steps && m.steps.find((s) => s.screenshot_path || s.screenshot))
+  if (!firstKf) return recordingGifUrl.value
+  if (typeof firstKf === 'string') return resolveAsset(firstKf)
+  const step = firstKf as any
+  const id = m.id || m.title || ''
+  return resolveAsset(`keyframes/${id}/${step.screenshot_path || step.screenshot}`)
+})
+
 const enrichedKeyframes = computed(() => {
   const m = manifest.value
   if (!m) return []
@@ -201,6 +248,28 @@ onMounted(async () => {
 .journey-section {
   margin: 20px 0;
 }
+
+.journey-recording-video {
+  width: 100%;
+  max-height: 70vh;
+  border-radius: 6px;
+  background: #000;
+  display: block;
+}
+
+.journey-recording-meta {
+  display: flex;
+  gap: 14px;
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.journey-recording-link {
+  color: var(--color-accent, #89b4fa);
+  text-decoration: none;
+  border-bottom: 1px dotted currentColor;
+}
+.journey-recording-link:hover { border-bottom-style: solid; }
 
 .journey-status {
   display: flex;
