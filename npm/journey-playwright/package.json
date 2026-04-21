@@ -12,5 +12,12 @@
     "@playwright/test": "^1.48.0",
     "playwright": "^1.48.0"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KooshaPari/phenotype-journeys.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "files": ["src", "README.md"]
 }
