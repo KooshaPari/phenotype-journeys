@@ -16,9 +16,29 @@ schemars = { workspace = true }
 jsonschema = { workspace = true }
 reqwest = { workspace = true, optional = true }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = { version = "0.6", optional = true }
+objc2-foundation = { version = "0.3", optional = true, features = [
+    "NSArray",
+    "NSDictionary",
+    "NSError",
+    "NSObject",
+    "NSString",
+    "NSURL",
+] }
+objc2-vision = { version = "0.3", optional = true, features = [
+    "VNRequest",
+    "VNRequestHandler",
+    "VNRecognizeTextRequest",
+    "VNObservation",
+] }
+
 [features]
 default = []
 live = ["reqwest"]
+# Apple Vision OCR backend (macOS only). Activated at runtime with
+# PHENOTYPE_JOURNEY_OCR_BACKEND=vision.
+vision = ["dep:objc2", "dep:objc2-foundation", "dep:objc2-vision"]
 
 [dev-dependencies]
 serde_json = { workspace = true }

@@ -10,6 +10,8 @@
 pub mod assertions;
 pub mod pipeline;
 pub mod verify;
+#[cfg(all(feature = "vision", target_os = "macos"))]
+pub mod vision;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
