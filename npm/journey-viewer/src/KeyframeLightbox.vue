@@ -68,16 +68,31 @@
             </div>
           </div>
 
-          <div class="kf-caption">
-            <div class="kf-caption-row">
-              <span class="kf-caption-label kf-caption-label-intent">Intent</span>
-              <span class="kf-caption-text">{{ currentFrame.caption || '—' }}</span>
+          <div
+            class="kf-caption"
+            :class="{ 'is-expanded': captionExpanded }"
+            tabindex="0"
+          >
+            <div class="kf-caption-scroll">
+              <div class="kf-caption-row">
+                <span class="kf-caption-label kf-caption-label-intent">Intent</span>
+                <span class="kf-caption-text">{{ currentFrame.caption || '—' }}</span>
+              </div>
+              <div class="kf-caption-row kf-caption-row-blind">
+                <span class="kf-caption-label kf-caption-label-blind">Blind</span>
+                <span class="kf-caption-text kf-caption-text-blind">{{ currentFrame.blind_description || '—' }}</span>
+              </div>
             </div>
-            <div class="kf-caption-row kf-caption-row-blind">
-              <span class="kf-caption-label kf-caption-label-blind">Blind</span>
-              <span class="kf-caption-text kf-caption-text-blind">{{ currentFrame.blind_description || '—' }}</span>
+            <div class="kf-caption-footer">
+              <span class="kf-meta">frame {{ index + 1 }} / {{ frames.length }} · {{ journeyId }}</span>
+              <button
+                class="kf-caption-toggle"
+                :aria-expanded="captionExpanded"
+                @click="captionExpanded = !captionExpanded"
+              >
+                {{ captionExpanded ? 'Show less ▴' : 'Show more ▾' }}
+              </button>
             </div>
-            <div class="kf-meta">frame {{ index + 1 }} / {{ frames.length }} · {{ journeyId }}</div>
           </div>
 
           <button
@@ -161,6 +176,8 @@ try {
   const stored = localStorage.getItem(STORAGE_KEY)
   if (stored === '0') showAnnotations.value = false
 } catch {}
+
+const captionExpanded = ref(false)
 
 const currentFrame = computed<Frame>(() => props.frames[props.index] || { path: '', caption: '', blind_description: null, annotations: [] })
 const annotations = computed<Annotation[]>(() => currentFrame.value.annotations || [])
@@ -332,7 +349,44 @@ watch(() => props.index, () => {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  transition: max-height 180ms ease;
 }
+.kf-caption-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 6rem;            /* ~4 lines collapsed */
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+}
+.kf-caption.is-expanded .kf-caption-scroll {
+  max-height: 20rem;           /* expanded */
+}
+.kf-caption:focus-visible {
+  outline: 2px solid #89b4fa;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+.kf-caption-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.kf-caption-toggle {
+  background: rgba(137, 180, 250, 0.08);
+  border: 1px solid rgba(137, 180, 250, 0.32);
+  color: #89b4fa;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.kf-caption-toggle:hover { background: rgba(137, 180, 250, 0.18); }
+.kf-caption-toggle:focus-visible { outline: 2px solid #89b4fa; outline-offset: 2px; }
 .kf-caption-row {
   display: flex;
   gap: 10px;
