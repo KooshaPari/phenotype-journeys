@@ -1,0 +1,80 @@
+# Central annotation registry for inline <Shot> screenshots.
+#
+# Schema: { <journey_id>: { <frame_index>: [ { bbox, label, color?, style?, note? } ] } }
+# frame_index is 1-based and matches the `frame-NNN.png` suffix.
+# bbox coordinates are in the image's natural (pre-scale) pixel space.
+#
+# The <Shot> Vue component accepts an inline `annotations` prop; when absent,
+# the doc-site build step injects entries from this file at publish time.
+
+plan-deepseek:
+  3:
+    - bbox: [120, 340, 220, 28]
+      label: "MLA (kv_lora_rank=512)"
+      color: "#89b4fa"
+      note: "Planner auto-detected Multi-head Latent Attention"
+  2:
+    - bbox: [80, 120, 320, 24]
+      label: "Model: DeepSeek-V2"
+      style: dashed
+
+plan-mla-deepseek:
+  2:
+    - bbox: [140, 200, 260, 32]
+      label: "Per-layer KV cache (bytes)"
+      color: "#a6e3a1"
+
+plan-help:
+  1:
+    - bbox: [40, 60, 520, 20]
+      label: "Usage line"
+      color: "#f9e2af"
+  5:
+    - bbox: [60, 260, 400, 20]
+      label: "--attention-kind flag"
+
+probe-list:
+  2:
+    - bbox: [40, 120, 480, 20]
+      label: "CUDA device 0"
+      color: "#cba6f7"
+
+probe-watch:
+  1:
+    - bbox: [60, 80, 400, 20]
+      label: "Live refresh header"
+
+fleet-register:
+  3:
+    - bbox: [80, 160, 360, 24]
+      label: "host entry added"
+      color: "#a6e3a1"
+
+fleet-audit:
+  2:
+    - bbox: [60, 200, 520, 28]
+      label: "attestation hash"
+      color: "#f38ba8"
+
+traceability-report:
+  1:
+    - bbox: [40, 40, 560, 24]
+      label: "Total FR coverage"
+
+first-plan:
+  5:
+    - bbox: [80, 180, 400, 24]
+      label: "VRAM fits"
+      color: "#a6e3a1"
+
+install-cargo:
+  1:
+    - bbox: [40, 40, 520, 24]
+      label: "cargo install hwLedger"
+
+ingest-error:
+  1:
+    - bbox: [60, 220, 480, 32]
+      label: "error code E-INGEST-02"
+      color: "#f38ba8"
+      style: dashed

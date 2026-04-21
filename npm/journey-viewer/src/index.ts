@@ -4,4 +4,5 @@ export { default as KeyframeLightbox } from "./KeyframeLightbox.vue";
 export { default as KeyframeGallery } from "./KeyframeGallery.vue";
 export { default as JourneyStep } from "./JourneyStep.vue";
 export { default as JudgeScore } from "./JudgeScore.vue";
+export { default as Shot } from "./Shot.vue";
 export * from "./types";

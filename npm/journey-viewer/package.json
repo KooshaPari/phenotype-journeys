@@ -15,6 +15,7 @@
     "./KeyframeGallery.vue": "./src/KeyframeGallery.vue",
     "./JourneyStep.vue": "./src/JourneyStep.vue",
     "./JudgeScore.vue": "./src/JudgeScore.vue",
+    "./Shot.vue": "./src/Shot.vue",
     "./types": "./src/types.ts"
   },
   "peerDependencies": {
