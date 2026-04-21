@@ -17,12 +17,13 @@
             <img
               ref="imgEl"
               class="kf-image"
-              :src="currentFrame.path"
+              :src="displayedFramePath"
               :alt="currentFrame.caption"
               @load="onImgLoad"
+              @error="onImgError"
             />
             <svg
-              v-if="showAnnotations && annotations.length && natW && natH"
+              v-if="showAnnotations && !annotationsBakedOn && annotations.length && natW && natH"
               class="kf-annot-svg"
               :viewBox="`0 0 ${natW} ${natH}`"
               preserveAspectRatio="xMidYMid meet"
@@ -49,7 +50,7 @@
               </g>
             </svg>
             <div
-              v-if="showAnnotations && annotations.length"
+              v-if="showAnnotations && !annotationsBakedOn && annotations.length"
               class="kf-label-layer"
               :style="{ aspectRatio: `${natW} / ${natH}` }"
             >
@@ -113,6 +114,15 @@
               Annotations: {{ showAnnotations ? 'on' : 'off' }}
             </button>
             <button
+              v-if="hasBakedFrame"
+              class="kf-btn"
+              @click="toggleBaked"
+              :aria-pressed="annotationsBakedOn"
+              :title="annotationsBakedOn ? 'Showing pre-baked keyframe with bbox overlays rendered in' : 'Showing raw keyframe with live SVG overlay'"
+            >
+              Annotations baked: {{ annotationsBakedOn ? 'on' : 'off' }}
+            </button>
+            <button
               class="kf-btn"
               :disabled="!annotations.length"
               @click="copyAnnotationsJson"
@@ -171,11 +181,45 @@ const hoverIdx = ref<number | null>(null)
 const copyLabel = ref('Copy JSON')
 
 const STORAGE_KEY = 'phenotype-journey:annotations-on'
+const BAKED_KEY = 'phenotype-journey:annotations-baked-on'
 const showAnnotations = ref(true)
+const annotationsBakedOn = ref(true)
+const bakedFrameMissing = ref<Record<number, boolean>>({})
 try {
   const stored = localStorage.getItem(STORAGE_KEY)
   if (stored === '0') showAnnotations.value = false
+  const bakedStored = localStorage.getItem(BAKED_KEY)
+  if (bakedStored === '0') annotationsBakedOn.value = false
 } catch {}
+
+function bakedPathFor(p: string): string {
+  // Replace trailing `.png`/`.jpg`/`.jpeg`/`.webp` with `.annotated.<ext>`.
+  return p.replace(/\.(png|jpe?g|webp)(\?|#|$)/i, '.annotated.$1$2')
+}
+const hasBakedFrame = computed<boolean>(() => {
+  const f = currentFrame.value
+  if (!f || !f.annotations || f.annotations.length === 0) return false
+  return !bakedFrameMissing.value[props.index]
+})
+const displayedFramePath = computed<string>(() => {
+  const f = currentFrame.value
+  if (!f || !f.path) return ''
+  if (annotationsBakedOn.value && hasBakedFrame.value) {
+    return bakedPathFor(f.path)
+  }
+  return f.path
+})
+function onImgError() {
+  // If the baked variant fails to load (missing in dev or incomplete bake),
+  // remember it for this frame index and fall back to the raw image.
+  if (annotationsBakedOn.value && hasBakedFrame.value) {
+    bakedFrameMissing.value = { ...bakedFrameMissing.value, [props.index]: true }
+  }
+}
+function toggleBaked() {
+  annotationsBakedOn.value = !annotationsBakedOn.value
+  try { localStorage.setItem(BAKED_KEY, annotationsBakedOn.value ? '1' : '0') } catch {}
+}
 
 const captionExpanded = ref(false)
 

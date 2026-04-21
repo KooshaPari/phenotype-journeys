@@ -13,9 +13,15 @@
           @click="openAt(i)"
         >
           <div class="keyframe-thumb-wrap">
-            <img :src="kf.path" :alt="kf.caption" class="keyframe-thumb" @load="onThumbLoad($event, i)" />
+            <img
+              :src="thumbSrc(kf, i)"
+              :alt="kf.caption"
+              class="keyframe-thumb"
+              @load="onThumbLoad($event, i)"
+              @error="onThumbError(i)"
+            />
             <svg
-              v-if="(kf.annotations?.length ?? 0) > 0 && natDims[i]"
+              v-if="(kf.annotations?.length ?? 0) > 0 && natDims[i] && !(annotationsBakedOn && !thumbBakedMissing[i])"
               class="keyframe-thumb-annot"
               :viewBox="`0 0 ${natDims[i].w} ${natDims[i].h}`"
               preserveAspectRatio="xMidYMid meet"
@@ -120,6 +126,29 @@ const natDims = ref<Record<number, { w: number; h: number }>>({})
 function onThumbLoad(ev: Event, i: number) {
   const img = ev.target as HTMLImageElement
   natDims.value[i] = { w: img.naturalWidth, h: img.naturalHeight }
+}
+
+// Annotations-baked toggle — shared with the lightbox via localStorage.
+const BAKED_KEY = 'phenotype-journey:annotations-baked-on'
+const annotationsBakedOn = ref(true)
+try {
+  const stored = localStorage.getItem(BAKED_KEY)
+  if (stored === '0') annotationsBakedOn.value = false
+} catch {}
+const thumbBakedMissing = ref<Record<number, boolean>>({})
+function bakedPathFor(p: string): string {
+  return p.replace(/\.(png|jpe?g|webp)(\?|#|$)/i, '.annotated.$1$2')
+}
+function thumbSrc(kf: Keyframe, i: number): string {
+  if (annotationsBakedOn.value && (kf.annotations?.length ?? 0) > 0 && !thumbBakedMissing.value[i]) {
+    return bakedPathFor(kf.path)
+  }
+  return kf.path
+}
+function onThumbError(i: number) {
+  if (annotationsBakedOn.value) {
+    thumbBakedMissing.value = { ...thumbBakedMissing.value, [i]: true }
+  }
 }
 
 const lightboxOpen = ref(false)
