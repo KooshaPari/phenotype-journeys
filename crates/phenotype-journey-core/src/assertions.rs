@@ -280,6 +280,7 @@ mod tests {
             description: None,
             judge_score: None,
             assertions: Some(a),
+            annotations: None,
         }
     }
 
@@ -392,6 +393,7 @@ mod tests {
                 description: None,
                 judge_score: None,
                 assertions: None,
+                annotations: None,
             }],
         );
         let r = run_on_manifest(&m, &tmp).unwrap();

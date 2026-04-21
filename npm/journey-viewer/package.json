@@ -11,6 +11,7 @@
     ".": "./src/index.ts",
     "./JourneyViewer.vue": "./src/JourneyViewer.vue",
     "./RecordingEmbed.vue": "./src/RecordingEmbed.vue",
+    "./KeyframeLightbox.vue": "./src/KeyframeLightbox.vue",
     "./types": "./src/types.ts"
   },
   "peerDependencies": {

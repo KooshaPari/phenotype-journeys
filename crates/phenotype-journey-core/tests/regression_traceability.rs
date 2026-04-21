@@ -62,6 +62,7 @@ fn prefix_recording_flags_error_substring() {
                 expected_exit: None,
                 ocr_required: true,
             }),
+            annotations: None,
         }],
         verification: None,
     };
