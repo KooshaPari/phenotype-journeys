@@ -17,6 +17,8 @@ export interface Step {
   intent: string;
   screenshot_path: string;
   description?: string | null;
+  /** Blind-describe (no-intent) observation rendered alongside `intent` in the viewer. */
+  blind_description?: string | null;
   judge_score?: number | null;
   annotations?: Annotation[] | null;
 }

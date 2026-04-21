@@ -117,6 +117,12 @@ pub struct Step {
     pub screenshot_path: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// Blind-describe pass output: what the Claude-describe agent saw in this
+    /// keyframe WITHOUT knowing the author's intent. Rendered alongside the
+    /// author intent in the docs so reviewers see both the intent and the
+    /// independent observation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub blind_description: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub judge_score: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -238,6 +244,7 @@ mod tests {
                     intent: "Open CLI".into(),
                     screenshot_path: "frame-001.png".into(),
                     description: None,
+                    blind_description: None,
                     judge_score: None,
                     assertions: None,
                     annotations: None,
@@ -248,6 +255,7 @@ mod tests {
                     intent: "See output".into(),
                     screenshot_path: "frame-002.png".into(),
                     description: None,
+                    blind_description: None,
                     judge_score: None,
                     assertions: None,
                     annotations: None,

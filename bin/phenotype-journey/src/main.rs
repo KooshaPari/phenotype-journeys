@@ -109,6 +109,17 @@ enum Cmd {
     },
     /// Emit the canonical JSONSchema for manifests.
     Schema,
+    /// Scan every `manifest.json` under one or more roots and fail if any
+    /// lacks a sibling `manifest.verified.json`. Hard gate for CI/push.
+    ///
+    /// Example:
+    ///   phenotype-journey check-verified \
+    ///     --root docs-site/public --root apps
+    CheckVerified {
+        /// One or more roots to scan recursively for `manifests/<id>/manifest.json`.
+        #[arg(long, required = true)]
+        root: Vec<PathBuf>,
+    },
     /// Run ground-truth assertions against keyframes (OCR + sentinel checks).
     ///
     /// Reads `<tape>.intents.yaml` (sibling to the manifest's tape) to pull
@@ -239,6 +250,7 @@ fn main() -> Result<()> {
         Cmd::Validate { manifest } => cmd_validate(manifest),
         Cmd::Sync { from, to, kind } => cmd_sync(from, to, kind.into()),
         Cmd::Schema => cmd_schema(),
+        Cmd::CheckVerified { root } => cmd_check_verified(root),
         Cmd::Assert {
             manifest,
             artefacts,
@@ -422,6 +434,93 @@ fn cmd_sync(from: PathBuf, to: PathBuf, kind: SyncKind) -> Result<()> {
 
 fn cmd_schema() -> Result<()> {
     println!("{}", serde_json::to_string_pretty(&manifest_schema())?);
+    Ok(())
+}
+
+/// Hard gate for CI/push: every `manifest.json` under each root MUST have a
+/// sibling `manifest.verified.json`. Prints each offender and exits non-zero
+/// if any are missing. Strict by design — not gated by any env var.
+fn cmd_check_verified(roots: Vec<PathBuf>) -> Result<()> {
+    let mut manifests: Vec<PathBuf> = Vec::new();
+    for root in &roots {
+        if !root.exists() {
+            eprintln!("warn: root does not exist, skipping: {}", root.display());
+            continue;
+        }
+        collect_manifest_jsons(root, &mut manifests)?;
+    }
+    manifests.sort();
+
+    let mut unverified: Vec<PathBuf> = Vec::new();
+    for m in &manifests {
+        let sibling = m
+            .parent()
+            .map(|p| p.join("manifest.verified.json"))
+            .unwrap_or_else(|| PathBuf::from("manifest.verified.json"));
+        if !sibling.exists() {
+            unverified.push(m.clone());
+        }
+    }
+
+    if unverified.is_empty() {
+        println!(
+            "check-verified: OK ({} manifests, all have manifest.verified.json)",
+            manifests.len()
+        );
+        return Ok(());
+    }
+
+    eprintln!(
+        "check-verified: FAIL — {} of {} manifest(s) lack a sibling manifest.verified.json:",
+        unverified.len(),
+        manifests.len()
+    );
+    for m in &unverified {
+        eprintln!("  missing verified: {}", m.display());
+    }
+    anyhow::bail!(
+        "{} unverified manifest(s); run `phenotype-journey verify --manifests-dir ...` before push",
+        unverified.len()
+    );
+}
+
+/// Recursively walk `root` and append every path that matches
+/// `<...>/manifests/<id>/manifest.json`. Skips hidden dirs (`.git`, `node_modules`,
+/// `target`, `dist`) to keep the scan fast on large repos.
+fn collect_manifest_jsons(root: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        let rd = match std::fs::read_dir(&dir) {
+            Ok(rd) => rd,
+            Err(_) => continue,
+        };
+        for entry in rd.flatten() {
+            let p = entry.path();
+            if p.is_dir() {
+                let name = p
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("");
+                if name.starts_with('.')
+                    || matches!(name, "node_modules" | "target" | "dist" | "build")
+                {
+                    continue;
+                }
+                stack.push(p);
+            } else if p.file_name().and_then(|s| s.to_str()) == Some("manifest.json") {
+                // Must live at `<...>/manifests/<id>/manifest.json`.
+                let is_manifest = p
+                    .parent()
+                    .and_then(|parent| parent.parent())
+                    .and_then(|grand| grand.file_name())
+                    .and_then(|s| s.to_str())
+                    == Some("manifests");
+                if is_manifest {
+                    out.push(p);
+                }
+            }
+        }
+    }
     Ok(())
 }
 
