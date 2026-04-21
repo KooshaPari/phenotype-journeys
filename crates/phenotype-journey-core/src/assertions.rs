@@ -15,8 +15,10 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 pub enum ViolationKind {
     MustContain,
+    MustContainRegex,
     MustNotContain,
     ExitCode,
+    InvalidRegex,
 }
 
 /// A single assertion violation.
@@ -89,7 +91,10 @@ pub fn run_on_manifest(
 
     for step in &steps_with_assertions {
         let a = step.assertions.as_ref().expect("filtered");
-        if !a.must_contain.is_empty() || !a.must_not_contain.is_empty() {
+        if !a.must_contain.is_empty()
+            || !a.must_contain_regex.is_empty()
+            || !a.must_not_contain.is_empty()
+        {
             let frame_path = keyframe_path(artefacts_root, &manifest.id, step);
             let text = ocr_text(&frame_path)?;
             for needle in &a.must_contain {
@@ -100,6 +105,28 @@ pub fn run_on_manifest(
                         expected: needle.clone(),
                         got_snippet: snippet(&text, 160),
                     });
+                }
+            }
+            for pattern in &a.must_contain_regex {
+                match regex::Regex::new(pattern) {
+                    Ok(re) => {
+                        if !re.is_match(&text) {
+                            violations.push(Violation {
+                                step_index: step.index,
+                                kind: ViolationKind::MustContainRegex,
+                                expected: pattern.clone(),
+                                got_snippet: snippet(&text, 160),
+                            });
+                        }
+                    }
+                    Err(e) => {
+                        violations.push(Violation {
+                            step_index: step.index,
+                            kind: ViolationKind::InvalidRegex,
+                            expected: pattern.clone(),
+                            got_snippet: format!("invalid regex: {e}"),
+                        });
+                    }
                 }
             }
             for needle in &a.must_not_contain {
@@ -429,6 +456,56 @@ mod tests {
         let r = run_on_manifest(&m, &tmp).unwrap();
         std::env::remove_var(OCR_CMD_ENV);
         assert!(r.passed, "violations: {:?}", r.violations);
+    }
+
+    #[test]
+    fn must_contain_regex_matches() {
+        let tmp = tempdir_abs();
+        // Simulates OCR-mangled `__EXIT_1__` as `-EXIT_1__`.
+        write_fixture(&tmp, "j", "frame-001.png", "final line -EXIT_1__ done");
+        std::env::set_var(OCR_CMD_ENV, "cat {{PATH}}");
+        let m = mk_manifest(
+            "j",
+            vec![step(
+                0,
+                "frame-001.png",
+                StepAssertions {
+                    must_contain_regex: vec![r"EXIT[_ ]?[0-9O@]".into()],
+                    ..Default::default()
+                },
+            )],
+        );
+        let r = run_on_manifest(&m, &tmp).unwrap();
+        std::env::remove_var(OCR_CMD_ENV);
+        assert!(r.passed, "violations: {:?}", r.violations);
+    }
+
+    #[test]
+    fn must_contain_regex_violation_and_invalid() {
+        let tmp = tempdir_abs();
+        write_fixture(&tmp, "j", "frame-001.png", "plain text with no digits");
+        std::env::set_var(OCR_CMD_ENV, "cat {{PATH}}");
+        let m = mk_manifest(
+            "j",
+            vec![step(
+                0,
+                "frame-001.png",
+                StepAssertions {
+                    must_contain_regex: vec![
+                        r"EXIT[_ ]?\d".into(), // non-matching
+                        "(unterminated".into(), // invalid regex
+                    ],
+                    ..Default::default()
+                },
+            )],
+        );
+        let r = run_on_manifest(&m, &tmp).unwrap();
+        std::env::remove_var(OCR_CMD_ENV);
+        assert!(!r.passed);
+        assert_eq!(r.violations.len(), 2);
+        let kinds: Vec<_> = r.violations.iter().map(|v| &v.kind).collect();
+        assert!(kinds.contains(&&ViolationKind::MustContainRegex));
+        assert!(kinds.contains(&&ViolationKind::InvalidRegex));
     }
 
     #[test]
