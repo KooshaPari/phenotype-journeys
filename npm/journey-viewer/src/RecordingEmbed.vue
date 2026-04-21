@@ -78,12 +78,32 @@ const props = withDefaults(
     // Max keyframes to render in the gallery. Default 12 keeps the VLM
     // context budget under ~30k tokens per journey.
     maxKeyframes?: number
+    // Which journey family this tape belongs to. Defaults to cli; override
+    // to "streamlit" or "gui" for those recordings.
+    kind?: 'cli' | 'streamlit' | 'gui'
   }>(),
   {
     autoplay: false,
-    maxKeyframes: 12
+    maxKeyframes: 12,
+    kind: 'cli'
   }
 )
+
+// Search roots in order when probing for a manifest / recording. If a
+// journey was misfiled (e.g. a streamlit tape named like a cli one), this
+// still resolves rather than surfacing the "No verified manifest" fallback.
+const SEARCH_ROOTS = ['cli-journeys', 'streamlit-journeys', 'gui-journeys']
+const primaryRoot = computed(() => {
+  switch (props.kind) {
+    case 'streamlit': return 'streamlit-journeys'
+    case 'gui': return 'gui-journeys'
+    default: return 'cli-journeys'
+  }
+})
+const orderedRoots = computed(() => {
+  const p = primaryRoot.value
+  return [p, ...SEARCH_ROOTS.filter((r) => r !== p)]
+})
 
 const { site } = useData()
 const keyframesData = ref<KeyframeData[]>([])
@@ -91,14 +111,27 @@ const manifestMissing = ref(false)
 
 // base-aware URL helpers. VitePress's withBase() handles the leading
 // `/hwLedger/` prefix in production so assets resolve correctly.
-const gifPath = computed(() => withBase(`/cli-journeys/recordings/${props.tape}.gif`))
-const mp4Path = computed(() => withBase(`/cli-journeys/recordings/${props.tape}.mp4`))
+// Streamlit + GUI recordings live under <root>/recordings/<tape>/<tape>.{mp4,gif}
+// whereas CLI tapes are flat at <root>/recordings/<tape>.{mp4,gif}. Resolve
+// per-kind.
+function recPath(ext: 'mp4' | 'gif'): string {
+  const root = primaryRoot.value
+  if (root === 'cli-journeys') {
+    return withBase(`/${root}/recordings/${props.tape}.${ext}`)
+  }
+  return withBase(`/${root}/recordings/${props.tape}/${props.tape}.${ext}`)
+}
+const gifPath = computed(() => recPath('gif'))
+const mp4Path = computed(() => recPath('mp4'))
 // No pre-built ZIPs exist — link to the keyframes directory listing instead.
-// Users who want the raw keyframes can curl individual frames or pull from
-// apps/cli-journeys/keyframes/<tape>/ in the repo.
-const keyframesRepoUrl = computed(
-  () => `https://github.com/KooshaPari/hwLedger/tree/main/apps/cli-journeys/keyframes/${props.tape}`
-)
+const keyframesRepoUrl = computed(() => {
+  const dir = primaryRoot.value === 'cli-journeys'
+    ? `apps/cli-journeys/keyframes/${props.tape}`
+    : primaryRoot.value === 'streamlit-journeys'
+      ? `apps/streamlit/journeys/recordings/${props.tape}`
+      : `apps/macos/HwLedgerUITests/journeys/${props.tape}`
+  return `https://github.com/KooshaPari/hwLedger/tree/main/${dir}`
+})
 
 const useMP4 = computed(() => {
   return typeof window !== 'undefined' && 'videoWidth' in document.createElement('video')
