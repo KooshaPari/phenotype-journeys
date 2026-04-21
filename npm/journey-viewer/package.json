@@ -12,11 +12,21 @@
     "./JourneyViewer.vue": "./src/JourneyViewer.vue",
     "./RecordingEmbed.vue": "./src/RecordingEmbed.vue",
     "./KeyframeLightbox.vue": "./src/KeyframeLightbox.vue",
+    "./KeyframeGallery.vue": "./src/KeyframeGallery.vue",
+    "./JourneyStep.vue": "./src/JourneyStep.vue",
+    "./JudgeScore.vue": "./src/JudgeScore.vue",
     "./types": "./src/types.ts"
   },
   "peerDependencies": {
     "vue": "^3.4.0",
     "vitepress": "^1.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KooshaPari/phenotype-journeys.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   },
   "files": ["src", "README.md"]
 }

@@ -3,24 +3,6 @@
 These packages publish to the **GitHub Packages** npm registry
 (`https://npm.pkg.github.com`) — not the public `npmjs.com` registry.
 
-## Automated publishing (preferred)
-
-`.github/workflows/publish-npm.yml` publishes `@phenotype/journey-viewer` and
-`@phenotype/playwright-record` to GitHub Packages on every GitHub Release
-(`release: published`) and via `workflow_dispatch`. It runs on
-`ubuntu-latest` only (macOS/Windows runners are billed) and authenticates
-with the default `${{ secrets.GITHUB_TOKEN }}` — no extra secrets required.
-
-To cut a release:
-
-1. Bump `version` in `npm/journey-viewer/package.json` and/or
-   `npm/playwright-record/package.json`.
-2. Tag and push (`git tag v0.1.x && git push --tags`).
-3. Create a GitHub Release on that tag — the workflow publishes both packages.
-
-To publish a single package manually, use **Actions → Publish npm packages
-to GitHub Packages → Run workflow** and pick the package from the dropdown.
-
 ## Prerequisites
 
 A GitHub personal access token (classic) with the following scopes:

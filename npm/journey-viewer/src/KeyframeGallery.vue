@@ -13,15 +13,9 @@
           @click="openAt(i)"
         >
           <div class="keyframe-thumb-wrap">
-            <img
-              :src="thumbSrc(kf, i)"
-              :alt="kf.caption"
-              class="keyframe-thumb"
-              @load="onThumbLoad($event, i)"
-              @error="onThumbError(i)"
-            />
+            <img :src="kf.path" :alt="kf.caption" class="keyframe-thumb" @load="onThumbLoad($event, i)" />
             <svg
-              v-if="(kf.annotations?.length ?? 0) > 0 && natDims[i] && !(annotationsBakedOn && !thumbBakedMissing[i])"
+              v-if="(kf.annotations?.length ?? 0) > 0 && natDims[i]"
               class="keyframe-thumb-annot"
               :viewBox="`0 0 ${natDims[i].w} ${natDims[i].h}`"
               preserveAspectRatio="xMidYMid meet"
@@ -53,73 +47,16 @@
           <div class="keyframe-caption-body">
             <div class="keyframe-caption-row">
               <span class="keyframe-num">{{ i + 1 }}.</span>
-              <span
-                class="keyframe-label keyframe-label-intent"
-                title="Author: human — what the step is meant to demonstrate (from intents.yaml)"
-              >
-                <span class="keyframe-label-glyph" aria-hidden="true">✍︎</span>
-                Intent
-              </span>
+              <span class="keyframe-label keyframe-label-intent">Intent</span>
               <span class="keyframe-text">{{ kf.caption || '—' }}</span>
-              <button
-                v-if="kf.agreement"
-                type="button"
-                class="keyframe-agreement-chip"
-                :class="['keyframe-agreement-' + kf.agreement.status]"
-                :aria-expanded="!!agreementOpen[i]"
-                :title="agreementTooltip(kf.agreement)"
-                @click.stop="toggleAgreement(i)"
-              >
-                <span aria-hidden="true">{{ agreementGlyph(kf.agreement.status) }}</span>
-                <span>{{ agreementPct(kf.agreement) }} overlap</span>
-              </button>
               <span v-if="(kf.annotations?.length ?? 0) > 0" class="keyframe-badge">
                 {{ kf.annotations!.length }} annot
               </span>
             </div>
             <div class="keyframe-caption-row keyframe-caption-row-blind">
               <span class="keyframe-num keyframe-num-blank" aria-hidden="true">&nbsp;</span>
-              <span
-                class="keyframe-label keyframe-label-blind"
-                title="Author: VLM blind evaluator — what the judge independently saw in the frame (no caption context)"
-              >
-                <span class="keyframe-label-glyph" aria-hidden="true">◉</span>
-                Blind
-              </span>
+              <span class="keyframe-label keyframe-label-blind">Blind</span>
               <span class="keyframe-text keyframe-text-blind">{{ kf.blind_description || '—' }}</span>
-            </div>
-            <div
-              v-if="kf.agreement && agreementOpen[i]"
-              class="keyframe-agreement-panel"
-              :class="['keyframe-agreement-panel-' + kf.agreement.status]"
-              role="region"
-              aria-label="Intent / blind agreement diff"
-            >
-              <div class="keyframe-agreement-remedy">
-                Remediation: re-record this step OR rewrite intent.yaml for frame {{ i + 1 }}
-              </div>
-              <div class="keyframe-agreement-col">
-                <div class="keyframe-agreement-title">Missing in Blind</div>
-                <div v-if="kf.agreement.missing_in_blind.length" class="keyframe-agreement-tokens">
-                  <span
-                    v-for="t in kf.agreement.missing_in_blind"
-                    :key="'m-' + t"
-                    class="keyframe-agreement-token keyframe-agreement-token-missing"
-                  >{{ t }}</span>
-                </div>
-                <div v-else class="keyframe-agreement-empty">— none —</div>
-              </div>
-              <div class="keyframe-agreement-col">
-                <div class="keyframe-agreement-title">Extras in Blind</div>
-                <div v-if="kf.agreement.extras_in_blind.length" class="keyframe-agreement-tokens">
-                  <span
-                    v-for="t in kf.agreement.extras_in_blind"
-                    :key="'e-' + t"
-                    class="keyframe-agreement-token keyframe-agreement-token-extra"
-                  >{{ t }}</span>
-                </div>
-                <div v-else class="keyframe-agreement-empty">— none —</div>
-              </div>
             </div>
           </div>
         </div>
@@ -160,26 +97,11 @@ interface Annotation {
   kind?: 'region' | 'pointer' | 'highlight'
 }
 
-interface Agreement {
-  status: 'green' | 'yellow' | 'red'
-  overlap: number
-  /** Backend-native raw score (cosine / Jaccard / SigLIP logit). */
-  raw_score?: number
-  /** Backend id: 'jaccard' | 'sentence-transformer' | 'siglip' (+ jaccard-fallback:*). */
-  backend?: string
-  backend_model?: string | null
-  intent_tokens?: string[]
-  blind_tokens?: string[]
-  missing_in_blind: string[]
-  extras_in_blind: string[]
-}
-
 interface Keyframe {
   path: string
   caption: string
   blind_description?: string | null
   annotations?: Annotation[] | null
-  agreement?: Agreement | null
 }
 
 const props = withDefaults(
@@ -194,57 +116,10 @@ const props = withDefaults(
 const PALETTE = ['#f38ba8','#a6e3a1','#f9e2af','#89b4fa','#cba6f7','#94e2d5','#fab387']
 function paletteColor(i: number) { return PALETTE[i % PALETTE.length] }
 
-const agreementOpen = ref<Record<number, boolean>>({})
-function toggleAgreement(i: number) {
-  agreementOpen.value = { ...agreementOpen.value, [i]: !agreementOpen.value[i] }
-}
-function agreementGlyph(s: 'green'|'yellow'|'red'): string {
-  return s === 'green' ? '🟢' : s === 'yellow' ? '🟡' : '🔴'
-}
-function agreementPct(a: Agreement): string {
-  return `${Math.round((a.overlap || 0) * 100)}%`
-}
-function backendLabel(b?: string): string {
-  if (!b) return 'Jaccard'
-  if (b.startsWith('jaccard-fallback')) return 'Jaccard (fallback)'
-  if (b === 'siglip') return 'SigLIP'
-  if (b === 'sentence-transformer') return 'Sentence'
-  if (b === 'jaccard') return 'Jaccard'
-  return b
-}
-function agreementTooltip(a: Agreement): string {
-  const label = backendLabel(a.backend)
-  const raw = (a.raw_score ?? a.overlap ?? 0).toFixed(2)
-  return `Agreement: ${a.status.toUpperCase()} — ${label} ${raw} (${agreementPct(a)}). Click for diff.`
-}
-
 const natDims = ref<Record<number, { w: number; h: number }>>({})
 function onThumbLoad(ev: Event, i: number) {
   const img = ev.target as HTMLImageElement
   natDims.value[i] = { w: img.naturalWidth, h: img.naturalHeight }
-}
-
-// Annotations-baked toggle — shared with the lightbox via localStorage.
-const BAKED_KEY = 'phenotype-journey:annotations-baked-on'
-const annotationsBakedOn = ref(true)
-try {
-  const stored = localStorage.getItem(BAKED_KEY)
-  if (stored === '0') annotationsBakedOn.value = false
-} catch {}
-const thumbBakedMissing = ref<Record<number, boolean>>({})
-function bakedPathFor(p: string): string {
-  return p.replace(/\.(png|jpe?g|webp)(\?|#|$)/i, '.annotated.$1$2')
-}
-function thumbSrc(kf: Keyframe, i: number): string {
-  if (annotationsBakedOn.value && (kf.annotations?.length ?? 0) > 0 && !thumbBakedMissing.value[i]) {
-    return bakedPathFor(kf.path)
-  }
-  return kf.path
-}
-function onThumbError(i: number) {
-  if (annotationsBakedOn.value) {
-    thumbBakedMissing.value = { ...thumbBakedMissing.value, [i]: true }
-  }
 }
 
 const lightboxOpen = ref(false)
@@ -410,15 +285,6 @@ async function closeLightbox() {
   padding: 1px 6px;
   border-radius: 4px;
   flex-shrink: 0;
-  cursor: help;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.keyframe-label-glyph {
-  font-size: 11px;
-  line-height: 1;
-  opacity: 0.85;
 }
 .keyframe-label-intent {
   color: var(--color-accent, #89b4fa);
@@ -465,82 +331,6 @@ async function closeLightbox() {
   background: rgba(166,227,161,0.12);
   padding: 2px 6px;
   border-radius: 4px;
-}
-.keyframe-agreement-chip {
-  all: unset;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  padding: 1px 6px;
-  border-radius: 999px;
-  cursor: pointer;
-  flex-shrink: 0;
-  border: 1px solid transparent;
-  transition: background 120ms ease, transform 120ms ease;
-}
-.keyframe-agreement-chip:hover { transform: translateY(-1px); }
-.keyframe-agreement-chip:focus-visible {
-  outline: 2px solid var(--color-accent, #89b4fa);
-  outline-offset: 2px;
-}
-.keyframe-agreement-green {
-  color: #a6e3a1; background: rgba(166,227,161,0.12); border-color: rgba(166,227,161,0.30);
-}
-.keyframe-agreement-yellow {
-  color: #e5b85a; background: rgba(249,226,175,0.14); border-color: rgba(249,226,175,0.34);
-}
-.keyframe-agreement-red {
-  color: #e65c78; background: rgba(243,139,168,0.14); border-color: rgba(243,139,168,0.40);
-}
-.keyframe-agreement-panel {
-  margin-top: 6px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  background: var(--vp-c-bg-mute);
-  border: 1px solid var(--vp-divider);
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11px;
-}
-.keyframe-agreement-panel-red   { border-color: rgba(243,139,168,0.50); }
-.keyframe-agreement-panel-yellow{ border-color: rgba(249,226,175,0.44); }
-.keyframe-agreement-panel-green { border-color: rgba(166,227,161,0.40); }
-.keyframe-agreement-remedy {
-  grid-column: 1 / -1;
-  font-size: 10px;
-  color: var(--vp-c-text-3);
-  font-style: italic;
-}
-.keyframe-agreement-col { display: flex; flex-direction: column; gap: 4px; }
-.keyframe-agreement-title {
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--vp-c-text-2);
-}
-.keyframe-agreement-tokens { display: flex; flex-wrap: wrap; gap: 4px; }
-.keyframe-agreement-token { padding: 1px 5px; border-radius: 4px; font-size: 10px; }
-.keyframe-agreement-token-missing {
-  color: #e65c78;
-  background: rgba(243,139,168,0.10);
-  border: 1px dashed rgba(243,139,168,0.45);
-}
-.keyframe-agreement-token-extra {
-  color: #5e83c7;
-  background: rgba(137,180,250,0.10);
-  border: 1px dashed rgba(137,180,250,0.45);
-}
-.keyframe-agreement-empty {
-  color: var(--vp-c-text-3); font-style: italic; font-size: 10px;
-}
-@media (max-width: 520px) {
-  .keyframe-agreement-panel { grid-template-columns: 1fr; }
 }
 .keyframe-empty {
   padding: 20px;
