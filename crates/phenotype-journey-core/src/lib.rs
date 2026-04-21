@@ -28,6 +28,11 @@ pub struct StepAssertions {
     /// Substrings that MUST appear in the OCR'd frame text.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub must_contain: Vec<String>,
+    /// Regular expressions that MUST match somewhere in the OCR'd frame text.
+    /// Used to tolerate OCR mangling (e.g. `EXIT[_ ]?[0-9O@]` to match
+    /// `__EXIT_0__`, `EXIT_O`, `-EXIT_1__`, etc.).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub must_contain_regex: Vec<String>,
     /// Substrings that MUST NOT appear in the OCR'd frame text.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub must_not_contain: Vec<String>,
@@ -43,6 +48,7 @@ pub struct StepAssertions {
 impl StepAssertions {
     pub fn is_empty(&self) -> bool {
         self.must_contain.is_empty()
+            && self.must_contain_regex.is_empty()
             && self.must_not_contain.is_empty()
             && self.expected_exit.is_none()
     }
@@ -338,6 +344,7 @@ mod tests {
     fn assertions_roundtrip() {
         let a = StepAssertions {
             must_contain: vec!["hello".into()],
+            must_contain_regex: vec![r"\d+".into()],
             must_not_contain: vec!["error:".into()],
             expected_exit: Some(0),
             ocr_required: true,

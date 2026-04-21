@@ -594,8 +594,10 @@ fn print_report(report: &AssertionReport) {
         for v in &report.violations {
             let kind = match v.kind {
                 ViolationKind::MustContain => "must_contain",
+                ViolationKind::MustContainRegex => "must_contain_regex",
                 ViolationKind::MustNotContain => "must_not_contain",
                 ViolationKind::ExitCode => "exit_code",
+                ViolationKind::InvalidRegex => "invalid_regex",
             };
             println!(
                 "    step {}: {} expected={:?} got=\"{}\"",
