@@ -34,8 +34,41 @@
         "judge_score": { "type": ["number", "null"] },
         "assertions": {
           "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/StepAssertions" }]
+        },
+        "annotations": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "array",
+              "items": { "$ref": "#/$defs/Annotation" }
+            }
+          ]
         }
       }
+    },
+    "Annotation": {
+      "type": "object",
+      "description": "Bounding-box annotation overlaid on a step keyframe. Coordinates are in source image pixels (top-left origin).",
+      "required": ["bbox", "label"],
+      "properties": {
+        "bbox": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "type": "integer", "minimum": 0 },
+          "description": "[x, y, width, height] in source image pixels."
+        },
+        "label": { "type": "string" },
+        "color": { "type": ["string", "null"] },
+        "style": { "type": "string", "enum": ["solid", "dashed"], "default": "solid" },
+        "note": { "type": ["string", "null"] },
+        "kind": {
+          "type": "string",
+          "enum": ["region", "pointer", "highlight"],
+          "default": "region"
+        }
+      },
+      "additionalProperties": false
     },
     "StepAssertions": {
       "type": "object",

@@ -1,6 +1,16 @@
 // Types generated/derived from schema/manifest.schema.json. Keep in sync with
 // phenotype-journey-core's serde types.
 
+export interface Annotation {
+  /** `[x, y, width, height]` in source image pixels. */
+  bbox: [number, number, number, number];
+  label: string;
+  color?: string | null;
+  style?: "solid" | "dashed";
+  note?: string | null;
+  kind?: "region" | "pointer" | "highlight";
+}
+
 export interface Step {
   index: number;
   slug: string;
@@ -8,6 +18,7 @@ export interface Step {
   screenshot_path: string;
   description?: string | null;
   judge_score?: number | null;
+  annotations?: Annotation[] | null;
 }
 
 export interface Verification {
