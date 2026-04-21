@@ -63,7 +63,14 @@
             </div>
           </div>
           <div class="kf-caption">
-            <div class="kf-caption-text">{{ currentFrame.caption || '—' }}</div>
+            <div class="kf-caption-row">
+              <span class="kf-caption-label kf-caption-label-intent">Intent</span>
+              <span class="kf-caption-text">{{ currentFrame.caption || '—' }}</span>
+            </div>
+            <div class="kf-caption-row kf-caption-row-blind">
+              <span class="kf-caption-label kf-caption-label-blind">Blind</span>
+              <span class="kf-caption-text kf-caption-text-blind">{{ currentFrame.blind_description || '—' }}</span>
+            </div>
             <div class="kf-meta">frame {{ index + 1 }} / {{ frames.length }} · {{ journeyId }}</div>
           </div>
           <button class="kf-nav kf-prev" @click="prev" :disabled="index === 0" aria-label="Previous">‹</button>
@@ -87,7 +94,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import type { Annotation } from './types'
 
-interface Frame { path: string; caption: string; annotations?: Annotation[] | null }
+interface Frame { path: string; caption: string; blind_description?: string | null; annotations?: Annotation[] | null }
 
 const props = defineProps<{ open: boolean; frames: Frame[]; index: number; journeyId: string }>()
 const emit = defineEmits<{ (e: 'update:index', v: number): void; (e: 'close'): void }>()
