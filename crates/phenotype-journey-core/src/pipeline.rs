@@ -502,15 +502,29 @@ fn verify_one(manifest_path: &Path, opts: &VerifyOptions) -> Result<VerifyJourne
     // always render the intent/blind pair. In api mode the live describe
     // call (see crate::verify::live) is the source of truth; mock is the
     // deterministic fallback when running offline or in CI.
+    // Resolve the agreement backend once per project() call so the Python
+    // import probe (SigLIP / sentence-transformers) runs at most once.
+    let agreement_backend = agreement::backend_from_env();
     for step in manifest.steps.iter_mut() {
         if step.blind_description.is_none() {
             step.blind_description = Some(synthesize_blind_description(&step.slug, step.index));
         }
         // Bake the agreement report so the viewer can render the chip
-        // (🟢/🟡/🔴 + overlap%) and the diff panel without re-tokenising
-        // the caption client-side. Recomputed every verify pass.
+        // (🟢/🟡/🔴 + overlap%/raw score) and the diff panel without
+        // re-tokenising the caption client-side. Recomputed every verify
+        // pass. The backend is logged on the report so the UI tooltip can
+        // show `SigLIP 0.42` vs `Jaccard 0.0` vs `Sentence 0.71`.
         let blind = step.blind_description.clone().unwrap_or_default();
-        step.agreement = Some(agreement::score(&step.intent, &blind));
+        let keyframe = agreement::resolve_keyframe(
+            Some(&opts.artefacts_root),
+            &step.screenshot_path,
+        );
+        step.agreement = Some(agreement::score_with(
+            &agreement_backend,
+            &step.intent,
+            &blind,
+            keyframe.as_deref(),
+        ));
     }
 
     // Run assertions.
