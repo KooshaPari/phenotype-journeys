@@ -94,6 +94,17 @@
                   <span class="kf-caption-label-glyph" aria-hidden="true">✍︎</span>
                   Intent
                 </span>
+                <button
+                  v-if="agreement"
+                  class="kf-agreement-chip"
+                  :class="['kf-agreement-' + agreement.status]"
+                  :aria-expanded="agreementOpen"
+                  :title="`Agreement: ${agreement.status.toUpperCase()} — ${agreementPct(agreement)} overlap. Click for diff.`"
+                  @click="agreementOpen = !agreementOpen"
+                >
+                  <span aria-hidden="true">{{ agreementGlyph(agreement.status) }}</span>
+                  <span>{{ agreementPct(agreement) }} overlap</span>
+                </button>
                 <span class="kf-caption-text">{{ currentFrame.caption || '—' }}</span>
               </div>
               <div class="kf-caption-row kf-caption-row-blind">
@@ -105,6 +116,42 @@
                   Blind
                 </span>
                 <span class="kf-caption-text kf-caption-text-blind">{{ currentFrame.blind_description || '—' }}</span>
+              </div>
+              <div
+                v-if="agreement && agreementOpen"
+                class="kf-agreement-panel"
+                :class="['kf-agreement-panel-' + agreement.status]"
+                role="region"
+                aria-label="Intent / blind agreement diff"
+              >
+                <div class="kf-agreement-section">
+                  <div class="kf-agreement-remedy">
+                    Remediation: re-record this step OR rewrite intent.yaml for frame {{ index + 1 }}
+                  </div>
+                  <div class="kf-agreement-title">Missing in Blind</div>
+                  <div v-if="agreement.missing_in_blind.length" class="kf-agreement-tokens">
+                    <span
+                      v-for="t in agreement.missing_in_blind"
+                      :key="'m-' + t"
+                      class="kf-agreement-token kf-agreement-token-missing"
+                    >{{ t }}</span>
+                  </div>
+                  <div v-else class="kf-agreement-empty">— none —</div>
+                </div>
+                <div class="kf-agreement-section">
+                  <div class="kf-agreement-remedy">
+                    Remediation: re-record this step OR rewrite intent.yaml for frame {{ index + 1 }}
+                  </div>
+                  <div class="kf-agreement-title">Extras in Blind</div>
+                  <div v-if="agreement.extras_in_blind.length" class="kf-agreement-tokens">
+                    <span
+                      v-for="t in agreement.extras_in_blind"
+                      :key="'e-' + t"
+                      class="kf-agreement-token kf-agreement-token-extra"
+                    >{{ t }}</span>
+                  </div>
+                  <div v-else class="kf-agreement-empty">— none —</div>
+                </div>
               </div>
             </div>
             <div class="kf-caption-footer">
@@ -181,11 +228,21 @@ interface Annotation {
   kind?: 'region' | 'pointer' | 'highlight'
 }
 
+interface Agreement {
+  status: 'green' | 'yellow' | 'red'
+  overlap: number
+  intent_tokens?: string[]
+  blind_tokens?: string[]
+  missing_in_blind: string[]
+  extras_in_blind: string[]
+}
+
 interface Frame {
   path: string
   caption: string
   blind_description?: string | null
   annotations?: Annotation[] | null
+  agreement?: Agreement | null
 }
 
 const props = defineProps<{
@@ -263,8 +320,17 @@ function toggleZoom() {
   zoomMode.value = zoomMode.value === 'fit' ? 'actual' : 'fit'
 }
 
-const currentFrame = computed<Frame>(() => props.frames[props.index] || { path: '', caption: '', blind_description: null, annotations: [] })
+const currentFrame = computed<Frame>(() => props.frames[props.index] || { path: '', caption: '', blind_description: null, annotations: [], agreement: null })
 const annotations = computed<Annotation[]>(() => currentFrame.value.annotations || [])
+const agreement = computed<Agreement | null>(() => currentFrame.value.agreement || null)
+const agreementOpen = ref(false)
+function agreementGlyph(s: 'green'|'yellow'|'red'): string {
+  return s === 'green' ? '🟢' : s === 'yellow' ? '🟡' : '🔴'
+}
+function agreementPct(a: Agreement): string {
+  return `${Math.round((a.overlap || 0) * 100)}%`
+}
+watch(() => props.index, () => { agreementOpen.value = false })
 
 function paletteFor(a: Annotation, i: number): string {
   return a.color || PALETTE[i % PALETTE.length]
@@ -537,6 +603,92 @@ watch(() => props.index, () => {
   border: 1px dashed rgba(205, 214, 244, 0.22);
 }
 .kf-caption-text { flex: 1 1 auto; }
+
+.kf-agreement-chip {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  transition: background 120ms ease, transform 120ms ease;
+}
+.kf-agreement-chip:hover { transform: translateY(-1px); }
+.kf-agreement-chip:focus-visible { outline: 2px solid #89b4fa; outline-offset: 2px; }
+.kf-agreement-green {
+  color: #a6e3a1; background: rgba(166,227,161,0.12); border-color: rgba(166,227,161,0.30);
+}
+.kf-agreement-yellow {
+  color: #f9e2af; background: rgba(249,226,175,0.12); border-color: rgba(249,226,175,0.30);
+}
+.kf-agreement-red {
+  color: #f38ba8; background: rgba(243,139,168,0.14); border-color: rgba(243,139,168,0.36);
+}
+
+.kf-agreement-panel {
+  margin-top: 4px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: rgba(17,17,27,0.55);
+  border: 1px solid rgba(205,214,244,0.14);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+.kf-agreement-panel-red { border-color: rgba(243,139,168,0.45); }
+.kf-agreement-panel-yellow { border-color: rgba(249,226,175,0.40); }
+.kf-agreement-panel-green { border-color: rgba(166,227,161,0.36); }
+.kf-agreement-section { display: flex; flex-direction: column; gap: 4px; }
+.kf-agreement-title {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #cdd6f4;
+  opacity: 0.85;
+}
+.kf-agreement-remedy {
+  font-size: 10px;
+  color: #a6adc8;
+  font-style: italic;
+  margin-bottom: 2px;
+}
+.kf-agreement-tokens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.kf-agreement-token {
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+.kf-agreement-token-missing {
+  color: #f38ba8;
+  background: rgba(243,139,168,0.10);
+  border: 1px dashed rgba(243,139,168,0.45);
+}
+.kf-agreement-token-extra {
+  color: #89b4fa;
+  background: rgba(137,180,250,0.10);
+  border: 1px dashed rgba(137,180,250,0.40);
+}
+.kf-agreement-empty {
+  color: #6c7086;
+  font-style: italic;
+  font-size: 11px;
+}
+@media (max-width: 720px) {
+  .kf-agreement-panel { grid-template-columns: 1fr; }
+}
 .kf-caption-text-blind { color: #a6adc8; font-style: italic; }
 .kf-meta {
   margin-top: 4px;

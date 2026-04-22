@@ -7,6 +7,7 @@
 //! the recording plus per-step intent/screenshot pairs, and are optionally
 //! verified by a Claude-describe + Claude-judge loop.
 
+pub mod agreement;
 pub mod assertions;
 pub mod pipeline;
 pub mod verify;
@@ -139,6 +140,11 @@ pub struct Step {
     /// rendered as overlays in the docs lightbox).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub annotations: Option<Vec<Annotation>>,
+    /// Intent ↔ blind-description agreement report, populated during
+    /// `verify` and consumed by the journey viewer's status chip + diff
+    /// panel (Green ≥0.6, Yellow 0.3–0.6, Red <0.3).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agreement: Option<agreement::AgreementReport>,
 }
 
 /// Verification payload added by `phenotype-journey verify`.
@@ -256,6 +262,7 @@ mod tests {
                     judge_score: None,
                     assertions: None,
                     annotations: None,
+                    agreement: None,
                 },
                 Step {
                     index: 1,
@@ -267,6 +274,7 @@ mod tests {
                     judge_score: None,
                     assertions: None,
                     annotations: None,
+                    agreement: None,
                 },
             ],
             verification: None,

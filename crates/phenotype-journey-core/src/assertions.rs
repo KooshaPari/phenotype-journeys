@@ -360,6 +360,7 @@ mod tests {
             judge_score: None,
             assertions: Some(a),
             annotations: None,
+            agreement: None,
         }
     }
 
@@ -524,6 +525,7 @@ mod tests {
                 judge_score: None,
                 assertions: None,
                 annotations: None,
+                agreement: None,
             }],
         );
         let r = run_on_manifest(&m, &tmp).unwrap();
