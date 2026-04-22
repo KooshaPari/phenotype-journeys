@@ -13,6 +13,7 @@
 //! Everything here is domain-agnostic — hwLedger just passes absolute paths
 //! into these functions via the `phenotype-journey` CLI.
 
+use crate::agreement;
 use crate::assertions::{run_on_manifest, Violation};
 use crate::{JourneyError, Manifest, Step, StepAssertions};
 use serde::{Deserialize, Serialize};
@@ -505,6 +506,11 @@ fn verify_one(manifest_path: &Path, opts: &VerifyOptions) -> Result<VerifyJourne
         if step.blind_description.is_none() {
             step.blind_description = Some(synthesize_blind_description(&step.slug, step.index));
         }
+        // Bake the agreement report so the viewer can render the chip
+        // (🟢/🟡/🔴 + overlap%) and the diff panel without re-tokenising
+        // the caption client-side. Recomputed every verify pass.
+        let blind = step.blind_description.clone().unwrap_or_default();
+        step.agreement = Some(agreement::score(&step.intent, &blind));
     }
 
     // Run assertions.
@@ -859,6 +865,7 @@ mod tests {
                     ..Default::default()
                 }),
                 annotations: None,
+                agreement: None,
             }],
             verification: None,
         };
@@ -982,6 +989,7 @@ steps: []
                     ..Default::default()
                 }),
                 annotations: None,
+                agreement: None,
             }],
             verification: None,
         };

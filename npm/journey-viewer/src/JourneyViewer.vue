@@ -6,10 +6,27 @@
         {{ manifest.intent || 'Journey demonstration' }}
       </div>
 
-      <div v-if="recordingUrl" class="journey-section journey-recording">
+      <div v-if="recordingUrl || recordingRichUrl" class="journey-section journey-recording">
+        <div v-if="recordingRichUrl" class="journey-recording-toggle" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            :aria-selected="recordingMode === 'rich'"
+            :class="['journey-recording-tab', recordingMode === 'rich' && 'active']"
+            @click="recordingMode = 'rich'"
+          >Rich</button>
+          <button
+            type="button"
+            role="tab"
+            :aria-selected="recordingMode === 'raw'"
+            :class="['journey-recording-tab', recordingMode === 'raw' && 'active']"
+            @click="recordingMode = 'raw'"
+            :disabled="!recordingUrl"
+          >Raw</button>
+        </div>
         <video
           class="journey-recording-video"
-          :src="recordingUrl"
+          :src="activeRecordingUrl"
           :poster="recordingPoster || undefined"
           controls
           preload="metadata"
@@ -21,7 +38,8 @@
           </template>
         </video>
         <div class="journey-recording-meta">
-          <a class="journey-recording-link" :href="recordingUrl" target="_blank" rel="noopener">Open MP4 ↗</a>
+          <a v-if="recordingRichUrl" class="journey-recording-link" :href="recordingRichUrl" target="_blank" rel="noopener">Open Rich MP4 ↗</a>
+          <a v-if="recordingUrl" class="journey-recording-link" :href="recordingUrl" target="_blank" rel="noopener">Open Raw MP4 ↗</a>
           <a v-if="recordingGifUrl" class="journey-recording-link" :href="recordingGifUrl" target="_blank" rel="noopener">Open GIF ↗</a>
         </div>
       </div>
@@ -98,6 +116,15 @@ interface Annotation {
   kind?: 'region' | 'pointer' | 'highlight'
 }
 
+interface AgreementReport {
+  status: 'green' | 'yellow' | 'red'
+  overlap: number
+  intent_tokens?: string[]
+  blind_tokens?: string[]
+  missing_in_blind: string[]
+  extras_in_blind: string[]
+}
+
 interface Manifest {
   id?: string
   title: string
@@ -106,7 +133,10 @@ interface Manifest {
   /** legacy bool OR (new) relative mp4 path like `recordings/<id>.mp4` */
   recording: boolean | string
   recording_gif?: string
-  keyframes?: Array<{ path: string; caption: string; blind_description?: string | null; annotations?: Annotation[] | null }>
+  /** Path to the enriched MP4 (rendered by Remotion). When present, the
+   *  viewer shows a Rich/Raw toggle defaulting to Rich. */
+  recording_rich?: string
+  keyframes?: Array<{ path: string; caption: string; blind_description?: string | null; annotations?: Annotation[] | null; agreement?: AgreementReport | null }>
   steps?: Array<{
     index?: number
     slug: string
@@ -117,6 +147,7 @@ interface Manifest {
     blind_description?: string
     judge_score?: number
     annotations?: Annotation[] | null
+    agreement?: AgreementReport | null
   }>
   error?: string
 }
@@ -148,7 +179,15 @@ const recordingUrl = computed(() => {
   if (!m) return ''
   return typeof m.recording === 'string' ? resolveAsset(m.recording) : ''
 })
+const recordingRichUrl = computed(() => resolveAsset(manifest.value?.recording_rich))
 const recordingGifUrl = computed(() => resolveAsset(manifest.value?.recording_gif))
+
+type RecordingMode = 'rich' | 'raw'
+const recordingMode = ref<RecordingMode>('rich')
+const activeRecordingUrl = computed(() => {
+  if (recordingMode.value === 'rich' && recordingRichUrl.value) return recordingRichUrl.value
+  return recordingUrl.value || recordingRichUrl.value
+})
 const recordingPoster = computed(() => {
   const m = manifest.value
   if (!m) return ''
@@ -173,6 +212,7 @@ const enrichedKeyframes = computed(() => {
         ...kf,
         annotations: kf.annotations ?? step?.annotations ?? null,
         blind_description: kf.blind_description ?? step?.blind_description ?? null,
+        agreement: kf.agreement ?? step?.agreement ?? null,
       }
     })
   }
@@ -187,6 +227,7 @@ const enrichedKeyframes = computed(() => {
       caption: s.intent,
       blind_description: s.blind_description ?? null,
       annotations: s.annotations ?? null,
+      agreement: s.agreement ?? null,
     }))
 })
 
@@ -270,6 +311,42 @@ onMounted(async () => {
   border-bottom: 1px dotted currentColor;
 }
 .journey-recording-link:hover { border-bottom-style: solid; }
+
+.journey-recording-toggle {
+  display: inline-flex;
+  gap: 2px;
+  margin-bottom: 10px;
+  border: 1px solid var(--vp-divider);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--vp-c-bg-mute);
+}
+
+.journey-recording-tab {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  background: transparent;
+  color: var(--vp-c-text-2);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 120ms ease, color 120ms ease;
+}
+.journey-recording-tab:hover:not(:disabled) {
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+}
+.journey-recording-tab:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.journey-recording-tab.active {
+  background: var(--color-accent, #89b4fa);
+  color: #0a0a0f;
+}
 
 .journey-status {
   display: flex;
