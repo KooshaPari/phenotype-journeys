@@ -27,21 +27,19 @@
 
     <details class="keyframes-section" :open="keyframesData.length > 0">
       <summary class="keyframes-title">
-        Keyframes ({{ keyframesData.length }} — VLM-friendly)
+        Keyframes ({{ keyframesData.length }} — VLM-friendly, click to expand)
       </summary>
-      <div v-if="keyframesData.length > 0" class="keyframes-grid">
-        <div
-          v-for="(frame, idx) in keyframesData"
-          :key="idx"
-          class="keyframe-item"
-        >
-          <img
-            :src="frame.path"
-            :alt="`${tape} keyframe ${idx + 1}: ${frame.alt}`"
-            loading="lazy"
-          />
-          <p class="keyframe-caption">{{ idx + 1 }}. {{ frame.alt }}</p>
-        </div>
+      <div v-if="keyframesData.length > 0" class="keyframes-gallery-host">
+        <!--
+          Delegate rendering to KeyframeGallery so thumbnails share the same
+          scroll/collapse caption treatment, Intent/Blind dual labels, and
+          lightbox (arrow nav, ESC, zoom, copy-JSON) that JourneyViewer uses.
+        -->
+        <KeyframeGallery
+          :keyframes="keyframesData"
+          :journey-id="tape"
+          :title="caption || tape"
+        />
       </div>
       <p v-else-if="manifestMissing" class="keyframes-empty">
         No verified manifest yet — this journey ran but hasn't been
@@ -64,10 +62,22 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { withBase, useData } from 'vitepress'
+import KeyframeGallery from './KeyframeGallery.vue'
+
+interface Annotation {
+  bbox: [number, number, number, number]
+  label: string
+  color?: string | null
+  style?: 'solid' | 'dashed'
+  note?: string | null
+  kind?: 'region' | 'pointer' | 'highlight'
+}
 
 interface KeyframeData {
   path: string
-  alt: string
+  caption: string
+  blind_description?: string | null
+  annotations?: Annotation[] | null
 }
 
 const props = withDefaults(
@@ -187,7 +197,9 @@ onMounted(async () => {
           .slice(0, props.maxKeyframes)
           .map((step: any, index: number) => ({
             path: normaliseFramePath(step.screenshot_path, step.index ?? index),
-            alt: step.intent || step.slug || `Step ${step.index ?? index + 1}`
+            caption: step.intent || step.slug || `Step ${step.index ?? index + 1}`,
+            blind_description: step.blind_description ?? null,
+            annotations: step.annotations ?? null,
           }))
       }
     } else {
@@ -253,39 +265,14 @@ onMounted(async () => {
   color: var(--color-accent);
 }
 
-.keyframes-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+.keyframes-gallery-host {
+  margin-top: 8px;
+}
+
+.keyframes-empty {
   margin-top: 12px;
-}
-
-.keyframe-item {
-  border: 1px solid var(--vp-divider);
-  border-radius: 4px;
-  overflow: hidden;
-  background-color: var(--vp-c-bg);
-}
-
-.keyframe-item img {
-  display: block;
-  width: 100%;
-  height: auto;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
-}
-
-.keyframe-caption {
-  padding: 8px;
-  margin: 0;
-  font-size: 11px;
-  color: var(--vp-c-text-2);
-  line-height: 1.3;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  font-size: 13px;
+  color: var(--vp-c-text-3);
 }
 
 .recording-links {
@@ -320,10 +307,6 @@ onMounted(async () => {
 
   .keyframes-section {
     background-color: rgba(255, 255, 255, 0.02);
-  }
-
-  .keyframe-item {
-    background-color: rgba(255, 255, 255, 0.03);
   }
 }
 </style>
