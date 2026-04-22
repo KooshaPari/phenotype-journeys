@@ -208,7 +208,20 @@
             >
               {{ copyLabel }}
             </button>
+            <button
+              class="kf-btn"
+              :disabled="!hasStructural"
+              :aria-pressed="showStructural"
+              :title="hasStructural ? 'Toggle structural snapshot (a11y tree / ARIA / terminal buffer)' : 'No structural sibling available for this frame'"
+              @click="toggleStructural"
+            >
+              Structural: {{ showStructural ? 'on' : 'off' }}
+            </button>
             <button class="kf-btn kf-close" @click="close" aria-label="Close">✕</button>
+          </div>
+
+          <div v-if="showStructural && hasStructural" class="kf-structural-rail">
+            <StructuralPane :path="currentFrame.structural_path ?? null" />
           </div>
         </div>
       </div>
@@ -218,6 +231,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
+import StructuralPane from './StructuralPane.vue'
 
 interface Annotation {
   bbox: [number, number, number, number]
@@ -246,6 +260,8 @@ interface Frame {
   blind_description?: string | null
   annotations?: Annotation[] | null
   agreement?: Agreement | null
+  /** Tier 0 structural-capture sibling URL (optional). */
+  structural_path?: string | null
 }
 
 const props = defineProps<{
@@ -273,15 +289,23 @@ const copyLabel = ref('Copy JSON')
 
 const STORAGE_KEY = 'phenotype-journey:annotations-on'
 const BAKED_KEY = 'phenotype-journey:annotations-baked-on'
+const STRUCTURAL_KEY = 'phenotype-journey:structural-on'
 const showAnnotations = ref(true)
 const annotationsBakedOn = ref(true)
+const showStructural = ref(false)
 const bakedFrameMissing = ref<Record<number, boolean>>({})
 try {
   const stored = localStorage.getItem(STORAGE_KEY)
   if (stored === '0') showAnnotations.value = false
   const bakedStored = localStorage.getItem(BAKED_KEY)
   if (bakedStored === '0') annotationsBakedOn.value = false
+  const structStored = localStorage.getItem(STRUCTURAL_KEY)
+  if (structStored === '1') showStructural.value = true
 } catch {}
+function toggleStructural() {
+  showStructural.value = !showStructural.value
+  try { localStorage.setItem(STRUCTURAL_KEY, showStructural.value ? '1' : '0') } catch {}
+}
 
 function bakedPathFor(p: string): string {
   // Replace trailing `.png`/`.jpg`/`.jpeg`/`.webp` with `.annotated.<ext>`.
@@ -323,7 +347,8 @@ function toggleZoom() {
   zoomMode.value = zoomMode.value === 'fit' ? 'actual' : 'fit'
 }
 
-const currentFrame = computed<Frame>(() => props.frames[props.index] || { path: '', caption: '', blind_description: null, annotations: [], agreement: null })
+const currentFrame = computed<Frame>(() => props.frames[props.index] || { path: '', caption: '', blind_description: null, annotations: [], agreement: null, structural_path: null })
+const hasStructural = computed<boolean>(() => !!currentFrame.value.structural_path)
 const annotations = computed<Annotation[]>(() => currentFrame.value.annotations || [])
 const agreement = computed<Agreement | null>(() => currentFrame.value.agreement || null)
 const agreementOpen = ref(false)
@@ -711,6 +736,20 @@ watch(() => props.index, () => {
   color: #a6adc8;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
+}
+
+.kf-structural-rail {
+  position: fixed;
+  right: 24px;
+  top: 16px;
+  bottom: calc(var(--kf-toolbar-h) + var(--kf-toolbar-gap) + 8px);
+  width: clamp(320px, 42vw, 560px);
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+}
+@media (max-width: 900px) {
+  .kf-structural-rail { position: static; width: 100%; margin-top: 12px; }
 }
 
 .kf-nav {
