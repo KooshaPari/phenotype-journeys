@@ -67,7 +67,7 @@
                 class="keyframe-agreement-chip"
                 :class="['keyframe-agreement-' + kf.agreement.status]"
                 :aria-expanded="!!agreementOpen[i]"
-                :title="`Agreement: ${kf.agreement.status.toUpperCase()} — ${agreementPct(kf.agreement)} overlap. Click for diff.`"
+                :title="agreementTooltip(kf.agreement)"
                 @click.stop="toggleAgreement(i)"
               >
                 <span aria-hidden="true">{{ agreementGlyph(kf.agreement.status) }}</span>
@@ -163,6 +163,11 @@ interface Annotation {
 interface Agreement {
   status: 'green' | 'yellow' | 'red'
   overlap: number
+  /** Backend-native raw score (cosine / Jaccard / SigLIP logit). */
+  raw_score?: number
+  /** Backend id: 'jaccard' | 'sentence-transformer' | 'siglip' (+ jaccard-fallback:*). */
+  backend?: string
+  backend_model?: string | null
   intent_tokens?: string[]
   blind_tokens?: string[]
   missing_in_blind: string[]
@@ -198,6 +203,19 @@ function agreementGlyph(s: 'green'|'yellow'|'red'): string {
 }
 function agreementPct(a: Agreement): string {
   return `${Math.round((a.overlap || 0) * 100)}%`
+}
+function backendLabel(b?: string): string {
+  if (!b) return 'Jaccard'
+  if (b.startsWith('jaccard-fallback')) return 'Jaccard (fallback)'
+  if (b === 'siglip') return 'SigLIP'
+  if (b === 'sentence-transformer') return 'Sentence'
+  if (b === 'jaccard') return 'Jaccard'
+  return b
+}
+function agreementTooltip(a: Agreement): string {
+  const label = backendLabel(a.backend)
+  const raw = (a.raw_score ?? a.overlap ?? 0).toFixed(2)
+  return `Agreement: ${a.status.toUpperCase()} — ${label} ${raw} (${agreementPct(a)}). Click for diff.`
 }
 
 const natDims = ref<Record<number, { w: number; h: number }>>({})
