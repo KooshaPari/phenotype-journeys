@@ -12,11 +12,15 @@
         @click.self="close"
         @keydown="onKey"
       >
-        <div class="kf-lightbox-inner" @click.stop>
+        <div
+          class="kf-lightbox-inner"
+          :class="{ 'caption-expanded': captionExpanded }"
+          @click.stop
+        >
           <div
             class="kf-image-wrap"
             :class="[`zoom-${zoomMode}`]"
-            :style="zoomMode === 'actual' ? { overflow: 'auto', maxWidth: '90vw', maxHeight: '80vh' } : undefined"
+            :style="zoomMode === 'actual' ? { overflow: 'auto', maxWidth: '90vw' } : undefined"
           >
             <img
               ref="imgEl"
@@ -357,31 +361,43 @@ watch(() => props.index, () => {
   justify-content: center;
   z-index: 9999;
   outline: none;
+  /* CSS variables drive image + caption budget so toolbar stays visible. */
+  --kf-toolbar-h: 56px;
+  --kf-toolbar-gap: 16px;
+  --kf-caption-max: 9rem;  /* ~6 lines collapsed */
+  --kf-image-max: calc(100vh - var(--kf-toolbar-h) - var(--kf-toolbar-gap) - var(--kf-caption-max) - 48px);
+}
+.kf-lightbox-overlay:has(.kf-lightbox-inner.caption-expanded) {
+  --kf-caption-max: 20rem;
 }
 .kf-lightbox-inner {
   position: relative;
   max-width: 92vw;
-  max-height: 92vh;
+  /* Reserve bottom space for the fixed toolbar so content never hides behind it. */
+  max-height: calc(100vh - var(--kf-toolbar-h) - var(--kf-toolbar-gap) * 2);
   display: flex;
   flex-direction: column;
   gap: 10px;
   align-items: center;
+  padding-bottom: calc(var(--kf-toolbar-h) + var(--kf-toolbar-gap));
 }
 .kf-image-wrap {
   position: relative;
   max-width: 90vw;
-  max-height: 80vh;
+  max-height: var(--kf-image-max);
   display: inline-block;
+  flex: 0 1 auto;
+  min-height: 0;
 }
 .kf-image {
   display: block;
   max-width: 90vw;
-  max-height: 80vh;
+  max-height: var(--kf-image-max);
   width: auto;
   height: auto;
   border-radius: 6px;
   box-shadow: 0 24px 80px rgba(0,0,0,0.6);
-  transition: max-width 150ms ease, max-height 150ms ease;
+  transition: max-width 150ms ease, max-height 180ms ease;
 }
 .kf-image.zoom-fit { cursor: zoom-in; }
 .kf-image.zoom-actual {
@@ -455,13 +471,12 @@ watch(() => props.index, () => {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 6rem;            /* ~4 lines collapsed */
+  /* Bounded so caption never pushes toolbar off-screen. */
+  max-height: min(var(--kf-caption-max), calc(100vh - var(--kf-toolbar-h) - var(--kf-toolbar-gap) * 2 - 120px));
   overflow-y: auto;
   padding-right: 4px;
   scrollbar-width: thin;
-}
-.kf-caption.is-expanded .kf-caption-scroll {
-  max-height: 20rem;           /* expanded */
+  transition: max-height 180ms ease;
 }
 .kf-caption:focus-visible {
   outline: 2px solid #89b4fa;
@@ -555,9 +570,34 @@ watch(() => props.index, () => {
 }
 
 .kf-toolbar {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 96vw;
+  padding: 10px 14px;
+  background: rgba(17, 17, 27, 0.82);
+  border: 1px solid rgba(205, 214, 244, 0.14);
+  border-radius: 10px;
+  backdrop-filter: blur(6px);
+  /* Subtle shadow above toolbar to signal scroll-affordance over content. */
+  box-shadow:
+    0 -12px 24px -12px rgba(0, 0, 0, 0.55),
+    0 8px 24px rgba(0, 0, 0, 0.45);
+  z-index: 10;
+}
+@media (max-width: 480px) {
+  .kf-toolbar {
+    bottom: 8px;
+    padding: 8px 10px;
+    gap: 6px;
+  }
+  .kf-lightbox-overlay { --kf-toolbar-h: 96px; }
 }
 .kf-btn {
   background: rgba(17,17,27,0.75);
