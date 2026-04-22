@@ -53,7 +53,13 @@
           <div class="keyframe-caption-body">
             <div class="keyframe-caption-row">
               <span class="keyframe-num">{{ i + 1 }}.</span>
-              <span class="keyframe-label keyframe-label-intent">Intent</span>
+              <span
+                class="keyframe-label keyframe-label-intent"
+                title="Author: human — what the step is meant to demonstrate (from intents.yaml)"
+              >
+                <span class="keyframe-label-glyph" aria-hidden="true">✍︎</span>
+                Intent
+              </span>
               <span class="keyframe-text">{{ kf.caption || '—' }}</span>
               <span v-if="(kf.annotations?.length ?? 0) > 0" class="keyframe-badge">
                 {{ kf.annotations!.length }} annot
@@ -61,7 +67,13 @@
             </div>
             <div class="keyframe-caption-row keyframe-caption-row-blind">
               <span class="keyframe-num keyframe-num-blank" aria-hidden="true">&nbsp;</span>
-              <span class="keyframe-label keyframe-label-blind">Blind</span>
+              <span
+                class="keyframe-label keyframe-label-blind"
+                title="Author: VLM blind evaluator — what the judge independently saw in the frame (no caption context)"
+              >
+                <span class="keyframe-label-glyph" aria-hidden="true">◉</span>
+                Blind
+              </span>
               <span class="keyframe-text keyframe-text-blind">{{ kf.blind_description || '—' }}</span>
             </div>
           </div>
@@ -314,6 +326,15 @@ async function closeLightbox() {
   padding: 1px 6px;
   border-radius: 4px;
   flex-shrink: 0;
+  cursor: help;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.keyframe-label-glyph {
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0.85;
 }
 .keyframe-label-intent {
   color: var(--color-accent, #89b4fa);

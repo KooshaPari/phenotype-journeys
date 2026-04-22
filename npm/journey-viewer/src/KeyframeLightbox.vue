@@ -13,14 +13,21 @@
         @keydown="onKey"
       >
         <div class="kf-lightbox-inner" @click.stop>
-          <div class="kf-image-wrap">
+          <div
+            class="kf-image-wrap"
+            :class="[`zoom-${zoomMode}`]"
+            :style="zoomMode === 'actual' ? { overflow: 'auto', maxWidth: '90vw', maxHeight: '80vh' } : undefined"
+          >
             <img
               ref="imgEl"
               class="kf-image"
+              :class="[`zoom-${zoomMode}`]"
               :src="displayedFramePath"
               :alt="currentFrame.caption"
+              :title="zoomMode === 'fit' ? 'Click to zoom to 1:1 (or press +)' : 'Click to fit (or press 0)'"
               @load="onImgLoad"
               @error="onImgError"
+              @click="toggleZoom"
             />
             <svg
               v-if="showAnnotations && !annotationsBakedOn && annotations.length && natW && natH"
@@ -76,11 +83,23 @@
           >
             <div class="kf-caption-scroll">
               <div class="kf-caption-row">
-                <span class="kf-caption-label kf-caption-label-intent">Intent</span>
+                <span
+                  class="kf-caption-label kf-caption-label-intent"
+                  title="Author: human — what the step is meant to demonstrate (from intents.yaml)"
+                >
+                  <span class="kf-caption-label-glyph" aria-hidden="true">✍︎</span>
+                  Intent
+                </span>
                 <span class="kf-caption-text">{{ currentFrame.caption || '—' }}</span>
               </div>
               <div class="kf-caption-row kf-caption-row-blind">
-                <span class="kf-caption-label kf-caption-label-blind">Blind</span>
+                <span
+                  class="kf-caption-label kf-caption-label-blind"
+                  title="Author: VLM blind evaluator — what the judge independently saw in the frame (no caption context)"
+                >
+                  <span class="kf-caption-label-glyph" aria-hidden="true">◉</span>
+                  Blind
+                </span>
                 <span class="kf-caption-text kf-caption-text-blind">{{ currentFrame.blind_description || '—' }}</span>
               </div>
             </div>
@@ -110,6 +129,14 @@
           >›</button>
 
           <div class="kf-toolbar">
+            <button
+              class="kf-btn"
+              @click="toggleZoom"
+              :aria-pressed="zoomMode === 'actual'"
+              :title="zoomMode === 'fit' ? 'Zoom to 1:1 (+)' : 'Fit to window (0)'"
+            >
+              Zoom: {{ zoomMode === 'fit' ? 'fit' : '1:1' }}
+            </button>
             <button class="kf-btn" @click="toggleAnnotations" :aria-pressed="showAnnotations">
               Annotations: {{ showAnnotations ? 'on' : 'off' }}
             </button>
@@ -223,6 +250,15 @@ function toggleBaked() {
 
 const captionExpanded = ref(false)
 
+// Zoom state — "fit" scales the image into the viewport (default);
+// "actual" renders the image at its natural pixel size and lets the
+// wrapper scroll for panning. Reset to "fit" on frame change and on open.
+type ZoomMode = 'fit' | 'actual'
+const zoomMode = ref<ZoomMode>('fit')
+function toggleZoom() {
+  zoomMode.value = zoomMode.value === 'fit' ? 'actual' : 'fit'
+}
+
 const currentFrame = computed<Frame>(() => props.frames[props.index] || { path: '', caption: '', blind_description: null, annotations: [] })
 const annotations = computed<Annotation[]>(() => currentFrame.value.annotations || [])
 
@@ -259,6 +295,9 @@ function onKey(e: KeyboardEvent) {
   if (e.key === 'Escape') { e.preventDefault(); close() }
   else if (e.key === 'ArrowRight') { e.preventDefault(); next() }
   else if (e.key === 'ArrowLeft') { e.preventDefault(); prev() }
+  else if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomMode.value = 'actual' }
+  else if (e.key === '-' || e.key === '_') { e.preventDefault(); zoomMode.value = 'fit' }
+  else if (e.key === '0') { e.preventDefault(); zoomMode.value = 'fit' }
 }
 
 function toggleAnnotations() {
@@ -296,12 +335,14 @@ watch(() => props.open, async (isOpen) => {
     await nextTick()
     overlayEl.value?.focus()
     natW.value = 0; natH.value = 0
+    zoomMode.value = 'fit'
   }
 })
 
-// Reset natural dims on frame change.
+// Reset natural dims + zoom on frame change.
 watch(() => props.index, () => {
   natW.value = 0; natH.value = 0
+  zoomMode.value = 'fit'
 })
 </script>
 
@@ -340,6 +381,21 @@ watch(() => props.index, () => {
   height: auto;
   border-radius: 6px;
   box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+  transition: max-width 150ms ease, max-height 150ms ease;
+}
+.kf-image.zoom-fit { cursor: zoom-in; }
+.kf-image.zoom-actual {
+  cursor: zoom-out;
+  max-width: none;
+  max-height: none;
+  width: auto;
+  height: auto;
+}
+.kf-image-wrap.zoom-actual {
+  /* Allow panning via scrollbars when the natural image exceeds viewport. */
+  overflow: auto;
+  border-radius: 6px;
+  scrollbar-width: thin;
 }
 .kf-annot-svg {
   position: absolute;
@@ -446,6 +502,15 @@ watch(() => props.index, () => {
   padding: 2px 8px;
   border-radius: 4px;
   flex-shrink: 0;
+  cursor: help;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.kf-caption-label-glyph {
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0.9;
 }
 .kf-caption-label-intent {
   color: #89b4fa;
