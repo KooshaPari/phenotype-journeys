@@ -5,5 +5,6 @@ export { default as KeyframeGallery } from "./KeyframeGallery.vue";
 export { default as JourneyStep } from "./JourneyStep.vue";
 export { default as JudgeScore } from "./JudgeScore.vue";
 export { default as Shot } from "./Shot.vue";
+export { default as ShotGallery } from "./ShotGallery.vue";
 export { default as StructuralPane } from "./StructuralPane.vue";
 export * from "./types";
