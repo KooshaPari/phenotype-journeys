@@ -609,6 +609,7 @@ fn print_report(report: &AssertionReport) {
 
 #[derive(Debug, Deserialize)]
 struct IntentsFile {
+    // kept: parsed from YAML to validate shape; not yet wired into the manifest overlay
     #[allow(dead_code)]
     #[serde(default)]
     journey: Option<String>,
@@ -619,6 +620,7 @@ struct IntentsFile {
 #[derive(Debug, Deserialize)]
 struct IntentStep {
     index: u32,
+    // kept: parsed from YAML for shape validation; manifest supplies the canonical intent string
     #[serde(default)]
     #[allow(dead_code)]
     intent: Option<String>,
@@ -997,19 +999,3 @@ mod annotate_tests {
     }
 }
 
-#[allow(dead_code)]
-fn walk(root: &std::path::Path) -> Result<Vec<PathBuf>> {
-    let mut out = Vec::new();
-    let mut stack = vec![root.to_path_buf()];
-    while let Some(dir) = stack.pop() {
-        for entry in std::fs::read_dir(&dir)? {
-            let entry = entry?;
-            let p = entry.path();
-            if p.is_dir() {
-                stack.push(p.clone());
-            }
-            out.push(p);
-        }
-    }
-    Ok(out)
-}
