@@ -1,6 +1,6 @@
 {
   "name": "@phenotype/journey-viewer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Vue 3 components for rendering Phenotype journey manifests in VitePress docs.",
   "license": "Apache-2.0",
   "type": "module",
@@ -16,6 +16,7 @@
     "./JourneyStep.vue": "./src/JourneyStep.vue",
     "./JudgeScore.vue": "./src/JudgeScore.vue",
     "./Shot.vue": "./src/Shot.vue",
+    "./ShotGallery.vue": "./src/ShotGallery.vue",
     "./types": "./src/types.ts"
   },
   "peerDependencies": {
