@@ -136,6 +136,13 @@ interface Manifest {
   /** Path to the enriched MP4 (rendered by Remotion). When present, the
    *  viewer shows a Rich/Raw toggle defaulting to Rich. */
   recording_rich?: string
+  /**
+   * Optional override: path (relative to the journey root) where per-step
+   * `screenshot_path` frames live. Defaults to `keyframes/<id>/` (CLI layout);
+   * streamlit-journey manifests override to `recordings/<id>/` because
+   * their frames are co-located with the recording.
+   */
+  keyframes_root?: string
   keyframes?: Array<{ path: string; caption: string; blind_description?: string | null; annotations?: Annotation[] | null; agreement?: AgreementReport | null }>
   steps?: Array<{
     index?: number
@@ -198,7 +205,7 @@ const recordingPoster = computed(() => {
   if (typeof firstKf === 'string') return resolveAsset(firstKf)
   const step = firstKf as any
   const id = m.id || m.title || ''
-  return resolveAsset(`keyframes/${id}/${step.screenshot_path || step.screenshot}`)
+  return resolveAsset(`${m.keyframes_root || `keyframes/${id}`}/${step.screenshot_path || step.screenshot}`)
 })
 
 const enrichedKeyframes = computed(() => {
@@ -223,7 +230,7 @@ const enrichedKeyframes = computed(() => {
   return steps
     .filter((s) => s.screenshot_path || s.screenshot)
     .map((s) => ({
-      path: `${manifestUrlBase.value}/keyframes/${id}/${s.screenshot_path || s.screenshot}`,
+      path: `${manifestUrlBase.value}/${m.keyframes_root || `keyframes/${id}`}/${s.screenshot_path || s.screenshot}`,
       caption: s.intent,
       blind_description: s.blind_description ?? null,
       annotations: s.annotations ?? null,
