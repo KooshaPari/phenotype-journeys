@@ -1,45 +1,35 @@
-# phenotype-journeys — Claude Code Instructions
+# Project: [PROJECT_NAME]
 
-## Project Overview
-- **Name**: phenotype-journeys
-- **Description**: Reusable journey harness (Rust CLI + Vue components + Playwright helper) for the Phenotype ecosystem
-- **Location**: `/Users/kooshapari/CodeProjects/Phenotype/repos/phenotype-journeys`
-- **Language Stack**: Rust, Vue, TypeScript, Python
-- **Status**: Active development
+## Overview
 
-## AgilePlus Mandate
-All work MUST be tracked in AgilePlus:
-- Reference: `/Users/kooshapari/CodeProjects/Phenotype/repos/AgilePlus`
-- CLI: `cd /Users/kooshapari/CodeProjects/Phenotype/repos/AgilePlus && agileplus <command>`
-- No code without corresponding AgilePlus spec.
+[Brief description of project]
 
-## Stack & Commands
+## Language & Stack
+
+[Primary language, framework, key dependencies]
+
+## Local Development
+
 ```bash
-# Rust build
-cargo build --workspace
-
-# Rust tests
-cargo test --workspace
-
-# Frontend (if applicable)
-bun install && bun run dev
-
-# Quality gate
-cargo clippy --workspace -- -D warnings
-cargo fmt --check
+# Build/test commands
 ```
 
-## Quality Checks
-From this repository root:
-- `cargo build --workspace` — compile
-- `cargo test --workspace` — tests
-- `cargo clippy --workspace -- -D warnings` — lint
+## Governance
 
-## Git & Branch Discipline
-- Feature branches: `worktrees/<topic>/`
-- Canonical: `main`
-- Never commit directly to `main`
+- **AgilePlus Spec Required**: All work tracked in AgilePlus before implementation
+- **FR Traceability**: All tests must reference FUNCTIONAL_REQUIREMENTS.md
+- **Quality Gates**: Run local lint/test before pushing
+- **Scripting Language**: Rust-first per Phenotype governance
+
+## Documentation
+
+- README.md — Main project doc
+- docs/ — Organized documentation
+- FUNCTIONAL_REQUIREMENTS.md — Feature tracking
+- AGENTS.md — AI agent instructions
 
 ## References
-- Parent workspace: `/Users/kooshapari/CodeProjects/Phenotype/repos/CLAUDE.md`
-- AgilePlus: `/Users/kooshapari/CodeProjects/Phenotype/repos/AgilePlus`
+
+- Phenotype Root: ~/.claude/CLAUDE.md
+- Workspace: /Users/kooshapari/CodeProjects/Phenotype/repos/CLAUDE.md
+- AgilePlus: cd AgilePlus && agileplus <command>
