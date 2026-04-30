@@ -1,5 +1,7 @@
 # phenotype-journeys
 
+[![AI Slop Inside](https://sladge.net/badge.svg)](https://sladge.net)
+
 Shared, project-agnostic **journey harness** for the Phenotype org: record a
 user-facing flow (CLI tape, UI test, or Playwright trace), emit a canonical
 manifest, and verify it with a Claude-describe + Claude-judge loop.
