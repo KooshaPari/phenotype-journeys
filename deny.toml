@@ -1,12 +1,18 @@
 [advisories]
 db-path = "$CARGO_HOME/advisory-db"
-ignore = []
 
 [licenses]
-allow = ["MIT", "Apache-2.0", "Apache-2.0 WITH LLVM-exception", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Unicode-DFS-2016", "MPL-2.0", "0BSD", "CC0-1.0", "BSL-1.0", "Unlicense", "Unicode-3.0"]
-
-[rules]
-msrv = "1.85"
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "MPL-2.0",
+    "0BSD",
+    "CC0-1.0",
+]
 
 [bans]
 multiple-versions = "warn"
@@ -14,5 +20,18 @@ wildcards = "warn"
 
 [sources]
 unknown-registry = "warn"
-unknown-git = "warn"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+
+# LOW severity advisories deferred pending upstream fixes (2026-04-24 audit)
+# Expires: 2026-07-23
+[[advisories.ignore]]
+advisory = "RUSTSEC-2026-0098"
+reason = "rustls-webpki: LOW severity name constraint bypass. Awaiting upstream patch."
+
+[[advisories.ignore]]
+advisory = "RUSTSEC-2026-0099"
+reason = "rustls-webpki: LOW severity wildcard name constraint bypass. Awaiting upstream patch."
+
+[[advisories.ignore]]
+advisory = "RUSTSEC-2026-0104"
+reason = "rustls-webpki: LOW severity panic in CRL parsing. Awaiting upstream patch."

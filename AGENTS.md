@@ -1,22 +1,21 @@
-# phenotype-journeys ẀAGENTS.MD
-
-Project Overview
-Ruskable journey harness (Rust CLI + Vue components + Playwright helper) for the Phenotype ecosystem. Tests user-facing flows across Phenotype products.
+# AGENTS.md — phenotype-journeys
 
-## Stack
-- Core: Rust CLI
-- UI : Vue components
-- Testing : Playwright
-- Build : Cargo + Vite
+This repository is part of the Phenotype ecosystem.
 
-# K Key Commands
-- `cargo build --release`	
-- `cargo test`
-- `playwright test`
+## Quick Links
 
-## Quality Gates
-- `cargo check --workspace`	
-- `playwright test`
+- **Project governance:** See `CLAUDE.md` in this repository
+- **Phenotype org guidance:** `/repos/CLAUDE.md`
+- **Global agent instructions:** `~/.claude/AGENTS.md`
+- **Work tracking:** AgilePlus at `/repos/AgilePlus`
 
-# # Notes
-Journeys are cross-product integration tests. Run against live dev stacks or mock environments. Snapshot tests use Playwright for screenshot diffing.
+## Operating Model
+
+1. Before implementing: Check AgilePlus for existing specs
+2. Quality gates: See `CLAUDE.md` for build/test/lint commands
+3. Worktrees: Use `repos/phenotype-journeys-wtrees/<topic>/` for features
+4. Integration: Commit to `main` after gates pass
+
+---
+
+**Parent contract:** See `CLAUDE.md` and `/repos/AGENTS.md` for complete governance.
