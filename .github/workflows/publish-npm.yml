@@ -38,7 +38,7 @@ jobs:
           - playwright-record
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
       - name: Skip package when dispatch selected a different one
         id: gate
@@ -54,7 +54,7 @@ jobs:
 
       - name: Setup Node
         if: steps.gate.outputs.skip != 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: "20"
           registry-url: "https://npm.pkg.github.com"
