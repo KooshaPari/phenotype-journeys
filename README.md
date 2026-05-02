@@ -28,6 +28,12 @@ the verify loop from scratch.
 - **`@phenotype/journey-playwright`** (TypeScript) — script a web page and
   emit a conformant manifest.
 
+## Traceability
+
+Journey evidence is part of the repo contract, not just a consumer concern.
+See [docs/journey-traceability.md](docs/journey-traceability.md) for the
+shared standard and repo expectations.
+
 ## Planned consumers
 
 - **hwLedger** — swap `apps/cli-journeys/scripts/verify-manifests.sh` +

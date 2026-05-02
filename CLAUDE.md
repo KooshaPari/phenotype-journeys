@@ -1,35 +1,38 @@
-# Project: [PROJECT_NAME]
+# CLAUDE.md — phenotype-journeys
 
-## Overview
+## Project Overview
 
-[Brief description of project]
+**Name**: phenotype-journeys
+**Purpose**: Journey orchestration and state machine library
+**Language**: Rust
+**Status**: Active
 
-## Language & Stack
+## Development
 
-[Primary language, framework, key dependencies]
-
-## Local Development
-
+### Build
 ```bash
-# Build/test commands
+cargo build
 ```
 
-## Governance
+### Test
+```bash
+cargo test --workspace
+```
 
-- **AgilePlus Spec Required**: All work tracked in AgilePlus before implementation
-- **FR Traceability**: All tests must reference FUNCTIONAL_REQUIREMENTS.md
-- **Quality Gates**: Run local lint/test before pushing
-- **Scripting Language**: Rust-first per Phenotype governance
+### Lint & Format
+```bash
+cargo clippy --workspace
+```
 
-## Documentation
+## Quality Gates
 
-- README.md — Main project doc
-- docs/ — Organized documentation
-- FUNCTIONAL_REQUIREMENTS.md — Feature tracking
-- AGENTS.md — AI agent instructions
+- All tests must pass
+- All lints must pass
+- No suppressions without justification
 
-## References
+## Governance References
 
-- Phenotype Root: ~/.claude/CLAUDE.md
-- Workspace: /Users/kooshapari/CodeProjects/Phenotype/repos/CLAUDE.md
-- AgilePlus: cd AgilePlus && agileplus <command>
+- **Parent governance**: `/Users/kooshapari/CodeProjects/Phenotype/repos/CLAUDE.md`
+- **Global governance**: `/Users/kooshapari/.claude/CLAUDE.md`
+- **Local agents**: See `AGENTS.md`
+- **Journey traceability**: `docs/journey-traceability.md`

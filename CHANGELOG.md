@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
 ## 🐛 Bug Fixes
 - Fix(journey-viewer): pin lightbox toolbar so caption expansion never clips controls
 
@@ -48,7 +62,7 @@ recordings/<id> to resolve frames from their real location.
 
 Minor version bump 0.1.2 -> 0.1.3 (additive field, backwards compatible).
 
-Co-authored-by: Forge <forge@phenotype.dev> (`f6ee613`)
+Co-authored-by: Forge <forge@kooshapari.com> (`f6ee613`)
 - Feat(journey-viewer)!: deprecate Shot align prop, drop float CSS (0.1.2) (#2)
 
 BREAKING: removes .shot-align-right / .shot-align-left CSS and stops
@@ -68,7 +82,7 @@ can now drop align without visual regression.
 - Adds CHANGELOG.md with breaking-change entry
 - Regenerates phenotype-journey-viewer-0.1.2.tgz for vendored consumers
 
-Co-authored-by: Forge <forge@phenotype.dev>
+Co-authored-by: Forge <forge@kooshapari.com>
 Co-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com> (`cc78cf9`)
 - Feat(journey-viewer): ShotGallery gallery-lightbox component v0.1.1 (#1)
 
@@ -80,7 +94,7 @@ Consumed by hwLedger fix/docs-layout-gallery (commit 092fb92) which replaces
 22 Shots with 12 ShotGalleries in visual-walkthrough-plan-deepseek.md and
 5 Shots with 1 ShotGallery in quickstart Section 2.
 
-Co-authored-by: Forge <forge@phenotype.dev> (`4acb288`)
+Co-authored-by: Forge <forge@kooshapari.com> (`4acb288`)
 - Feat(npm): @phenotype/playwright-record plugin
 
 Batch 3 of the user-story-as-test framework (ADR 0034). Parses
@@ -468,5 +482,5 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com> (`2eabaa2`)
 
 cargo build: clean in 2.3s.
 
-Co-authored-by: Forge <forge@phenotype.dev>
+Co-authored-by: Forge <forge@kooshapari.com>
 Co-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com> (`1a2bcd3`)
