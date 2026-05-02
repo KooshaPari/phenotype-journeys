@@ -7,8 +7,8 @@
 //! * `extract_keyframes`    ← `extract-keyframes.sh`
 //! * `verify_all`           ← `verify-manifests.sh` + `mock-anthropic-server.py`
 //! * `sync_artefacts`       ← `sync-cli-journeys.sh`, `sync-journey-artefacts.sh`,
-//!                             `sync-streamlit-journeys.sh`, `sync-adrs.sh`,
-//!                             `sync-research.sh`
+//!   `sync-streamlit-journeys.sh`, `sync-adrs.sh`,
+//!   `sync-research.sh`
 //!
 //! Everything here is domain-agnostic — hwLedger just passes absolute paths
 //! into these functions via the `phenotype-journey` CLI.

@@ -804,8 +804,8 @@ fn parse_tesseract_tsv(tsv: &str, level: TsvLevel, min_conf: i32) -> Result<Vec<
 
     // (block, par, line) -> (x0, y0, x1, y1, words)
     use std::collections::BTreeMap;
-    let mut lines_map: BTreeMap<(i32, i32, i32), (i32, i32, i32, i32, Vec<String>)> =
-        BTreeMap::new();
+    type LinesMap = BTreeMap<(i32, i32, i32), (i32, i32, i32, i32, Vec<String>)>;
+    let mut lines_map: LinesMap = BTreeMap::new();
     let mut words: Vec<Annotation> = Vec::new();
     let mut palette_idx: usize = 0;
 
@@ -935,7 +935,7 @@ fn merge_annotations_into_yaml(yaml_path: &Path, manifest: &Manifest) -> Result<
         // Find existing entry with matching index.
         let found = steps_seq.iter_mut().find(|v| {
             v.as_mapping()
-                .and_then(|m| m.get(&Value::String("index".into())))
+                .and_then(|m| m.get(Value::String("index".into())))
                 .and_then(|v| v.as_u64())
                 .map(|u| u as u32 == step.index)
                 .unwrap_or(false)

@@ -56,32 +56,22 @@ impl StepAssertions {
 }
 
 /// Rendering kind for an annotation.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum AnnotationKind {
+    #[default]
     Region,
     Pointer,
     Highlight,
 }
 
-impl Default for AnnotationKind {
-    fn default() -> Self {
-        AnnotationKind::Region
-    }
-}
-
 /// Border style for an annotation.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum AnnotationStyle {
+    #[default]
     Solid,
     Dashed,
-}
-
-impl Default for AnnotationStyle {
-    fn default() -> Self {
-        AnnotationStyle::Solid
-    }
 }
 
 /// Bounding-box annotation overlaid onto a step's keyframe.
