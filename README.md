@@ -1,5 +1,8 @@
 # phenotype-journeys
 
+[![License](https://img.shields.io/github/license/KooshaPari/phenotype-journeys)](LICENSE)
+[![Build](https://img.shields.io/github/actions/workflow/status/KooshaPari/phenotype-journeys/ci.yml?branch=main&label=build)](https://github.com/KooshaPari/phenotype-journeys/actions/workflows/ci.yml)
+
 Shared, project-agnostic **journey harness** for the Phenotype org: record a
 user-facing flow (CLI tape, UI test, or Playwright trace), emit a canonical
 manifest, and verify it with a Claude-describe + Claude-judge loop.
