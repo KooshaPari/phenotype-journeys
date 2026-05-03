@@ -25,13 +25,13 @@ allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 # LOW severity advisories deferred pending upstream fixes (2026-04-24 audit)
 # Expires: 2026-07-23
 [[advisories.ignore]]
-advisory = "RUSTSEC-2026-0098"
+id = "RUSTSEC-2026-0098"
 reason = "rustls-webpki: LOW severity name constraint bypass. Awaiting upstream patch."
 
 [[advisories.ignore]]
-advisory = "RUSTSEC-2026-0099"
+id = "RUSTSEC-2026-0099"
 reason = "rustls-webpki: LOW severity wildcard name constraint bypass. Awaiting upstream patch."
 
 [[advisories.ignore]]
-advisory = "RUSTSEC-2026-0104"
+id = "RUSTSEC-2026-0104"
 reason = "rustls-webpki: LOW severity panic in CRL parsing. Awaiting upstream patch."
