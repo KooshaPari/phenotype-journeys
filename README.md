@@ -2,6 +2,7 @@
 
 [![License](https://img.shields.io/github/license/KooshaPari/phenotype-journeys)](LICENSE)
 [![Build](https://img.shields.io/github/actions/workflow/status/KooshaPari/phenotype-journeys/ci.yml?branch=main&label=build)](https://github.com/KooshaPari/phenotype-journeys/actions/workflows/ci.yml)
+[![AI Slop Inside](https://sladge.net/badge.svg)](https://sladge.net)
 
 Shared, project-agnostic **journey harness** for the Phenotype org: record a
 user-facing flow (CLI tape, UI test, or Playwright trace), emit a canonical
