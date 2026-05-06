@@ -1,5 +1,9 @@
 # Delegates to phenoShared reusable gate (skips when no manifests).
 name: Journey Gate
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 
 on:
   push:
