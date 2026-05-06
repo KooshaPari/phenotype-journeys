@@ -34,6 +34,3 @@ wildcards = "warn"
 unknown-git = "deny"
 unknown-registry = "warn"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-
-# Note: rustls-webpki RUSTSEC-2026-0098/0099/0104 ignores removed —
-# advisories not encountered in current dep tree (cargo-deny warned).
