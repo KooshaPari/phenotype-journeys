@@ -4,6 +4,9 @@ concurrency:
   cancel-in-progress: true
 
 on: [push, pull_request]
+
+permissions: {}
+
 jobs:
   links:
     runs-on: ubuntu-24.04
