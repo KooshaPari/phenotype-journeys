@@ -9,6 +9,9 @@ on:
     paths: ['**/Cargo.toml']
   workflow_dispatch:
 
+
+permissions: {}
+
 jobs:
   semver-checks:
     runs-on: ubuntu-24.04
