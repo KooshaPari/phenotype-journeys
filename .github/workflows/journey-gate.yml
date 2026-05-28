@@ -51,6 +51,9 @@ on:
 env:
   PHENOTYPE_JOURNEY_STRICT: ${{ inputs.strict_mode || 'true' }}
 
+
+permissions: {}
+
 jobs:
   journey-gate:
     name: Journey Verification
