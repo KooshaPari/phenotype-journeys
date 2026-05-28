@@ -8,6 +8,8 @@ on:
     branches: [main]
   pull_request:
 
+permissions: {}
+
 jobs:
   trufflehog:
     runs-on: ubuntu-24.04
