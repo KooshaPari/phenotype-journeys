@@ -4,7 +4,7 @@ name: Publish npm packages to GitHub Packages
 # GitHub Packages npm registry (https://npm.pkg.github.com).
 #
 # Trigger: GitHub Release (published) or manual workflow_dispatch.
-# Runner:  ubuntu-latest only (macOS/Windows runners are billed; see org policy).
+# Runner:  ubuntu-24.04 only (macOS/Windows runners are billed; see org policy).
 # Auth:    ${{ secrets.GITHUB_TOKEN }} — the default token has write:packages for
 #          the repo-owned @phenotype scope when publishing from this repo.
 
@@ -29,7 +29,7 @@ permissions:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
