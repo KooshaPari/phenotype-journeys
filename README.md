@@ -25,6 +25,24 @@ the verify loop from scratch.
 - **`@phenotype/journey-playwright`** (TypeScript) — script a web page and
   emit a conformant manifest.
 
+## How it works
+
+```mermaid
+flowchart LR
+    subgraph Record
+        Tape["VHS tape / Playwright script"] --> Frames["keyframes + manifest.json"]
+    end
+    Frames --> Validate["validate (JSONSchema)"]
+    Validate --> Verify["verify: Claude-describe + Claude-judge<br/>(mock | live)"]
+    Verify --> Assert["assert: OCR hard gates<br/>(must_contain / expected_exit)"]
+    Assert --> Verified["manifest.verified.json"]
+    Verified --> Sync["sync → docs/public/journeys"]
+    Sync --> Viewer["@phenotype/journey-viewer (Vue 3)"]
+```
+
+> [!EMBED] STUB — example verified journey
+> A rendered `JourneyViewer` playback of a verified manifest (keyframes + judge verdict) belongs here. Pending rich-embed pipeline (#966).
+
 ## Planned consumers
 
 - **hwLedger** — swap `apps/cli-journeys/scripts/verify-manifests.sh` +
