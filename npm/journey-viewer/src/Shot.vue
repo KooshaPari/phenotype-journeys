@@ -1,6 +1,6 @@
 <template>
   <figure
-    :class="['shot', `shot-size-${resolvedSize}`, `shot-align-${align}`]"
+    :class="['shot', `shot-size-${resolvedSize}`, `shot-align-${resolvedAlign}`]"
     :style="wrapperStyle"
   >
     <button
@@ -77,13 +77,25 @@ const props = withDefaults(
     caption?: string
     annotations?: Annotation[] | null
     size?: 'inline' | 'small' | 'medium' | 'large'
+    /**
+     * @deprecated since 0.1.2 — `align` is a type-only no-op retained for minor-version
+     * backwards compatibility. `left` and `right` (float) alignments were removed;
+     * prefer `<ShotGallery>` for side-by-side layouts. Only `inline` and `center`
+     * are honoured; any other value falls back to `center`.
+     */
     align?: 'left' | 'right' | 'center' | 'inline'
     journeyId?: string
     /** Optional frame index (1-based) for annotation registry lookup */
     frame?: number
     width?: string | number | null
   }>(),
-  { size: 'medium', align: 'right', annotations: null, journeyId: '', frame: 0, width: null },
+  { size: 'medium', align: 'center', annotations: null, journeyId: '', frame: 0, width: null },
+)
+
+// `align` is deprecated; only `inline` and `center` are honoured. Any other
+// value (including the legacy `left`/`right` floats) collapses to `center`.
+const resolvedAlign = computed<'inline' | 'center'>(() =>
+  props.align === 'inline' ? 'inline' : 'center',
 )
 
 const SIZE_PX: Record<string, number> = {
@@ -151,8 +163,6 @@ async function closeLightbox() {
   overflow: hidden;
   box-shadow: 0 2px 6px rgba(0,0,0,0.08);
 }
-.shot-align-right { float: right; clear: right; margin-left: 18px; }
-.shot-align-left { float: left; clear: left; margin-right: 18px; }
 .shot-align-center { float: none; margin-left: auto; margin-right: auto; }
 .shot-align-inline {
   display: inline-block;
@@ -219,11 +229,6 @@ async function closeLightbox() {
 }
 
 @media (max-width: 640px) {
-  .shot-align-right, .shot-align-left {
-    float: none;
-    margin-left: auto;
-    margin-right: auto;
-  }
   .shot-size-medium, .shot-size-large { width: 100%; }
 }
 </style>

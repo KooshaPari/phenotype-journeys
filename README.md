@@ -1,5 +1,8 @@
 # phenotype-journeys
 
+[![License](https://img.shields.io/github/license/KooshaPari/phenotype-journeys)](LICENSE)
+[![Build](https://img.shields.io/github/actions/workflow/status/KooshaPari/phenotype-journeys/ci.yml?branch=main&label=build)](https://github.com/KooshaPari/phenotype-journeys/actions/workflows/ci.yml)
+
 Shared, project-agnostic **journey harness** for the Phenotype org: record a
 user-facing flow (CLI tape, UI test, or Playwright trace), emit a canonical
 manifest, and verify it with a Claude-describe + Claude-judge loop.
@@ -25,23 +28,11 @@ the verify loop from scratch.
 - **`@phenotype/journey-playwright`** (TypeScript) — script a web page and
   emit a conformant manifest.
 
-## How it works
+## Traceability
 
-```mermaid
-flowchart LR
-    subgraph Record
-        Tape["VHS tape / Playwright script"] --> Frames["keyframes + manifest.json"]
-    end
-    Frames --> Validate["validate (JSONSchema)"]
-    Validate --> Verify["verify: Claude-describe + Claude-judge<br/>(mock | live)"]
-    Verify --> Assert["assert: OCR hard gates<br/>(must_contain / expected_exit)"]
-    Assert --> Verified["manifest.verified.json"]
-    Verified --> Sync["sync → docs/public/journeys"]
-    Sync --> Viewer["@phenotype/journey-viewer (Vue 3)"]
-```
-
-> [!EMBED] STUB — example verified journey
-> A rendered `JourneyViewer` playback of a verified manifest (keyframes + judge verdict) belongs here. Pending rich-embed pipeline (#966).
+Journey evidence is part of the repo contract, not just a consumer concern.
+See [docs/journey-traceability.md](docs/journey-traceability.md) for the
+shared standard and repo expectations.
 
 ## Planned consumers
 

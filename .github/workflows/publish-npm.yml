@@ -1,0 +1,73 @@
+name: Publish npm packages to GitHub Packages
+
+# Publishes @phenotype/journey-viewer and @phenotype/playwright-record to the
+# GitHub Packages npm registry (https://npm.pkg.github.com).
+#
+# Trigger: GitHub Release (published) or manual workflow_dispatch.
+# Runner:  ubuntu-latest only (macOS/Windows runners are billed; see org policy).
+# Auth:    ${{ secrets.GITHUB_TOKEN }} — the default token has write:packages for
+#          the repo-owned @phenotype scope when publishing from this repo.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Which package to publish"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - journey-viewer
+          - playwright-record
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - journey-viewer
+          - playwright-record
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Skip package when dispatch selected a different one
+        id: gate
+        run: |
+          selected="${{ github.event.inputs.package }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] \
+             && [ -n "$selected" ] && [ "$selected" != "all" ] \
+             && [ "$selected" != "${{ matrix.package }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e@8f152de45cc393bb48ce5d89d36b731f54556e65
+        with:
+          node-version: "20"
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@phenotype"
+
+      - name: Install dependencies
+        if: steps.gate.outputs.skip != 'true'
+        working-directory: npm/${{ matrix.package }}
+        run: npm install --no-audit --no-fund
+
+      - name: Publish
+        if: steps.gate.outputs.skip != 'true'
+        working-directory: npm/${{ matrix.package }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm publish --access restricted
