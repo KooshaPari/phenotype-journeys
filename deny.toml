@@ -1,5 +1,7 @@
 [advisories]
 db-path = "$CARGO_HOME/advisory-db"
+unmaintained = "warn"
+unsound = "warn"
 
 [licenses]
 allow = [
