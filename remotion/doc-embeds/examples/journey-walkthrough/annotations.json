@@ -1,0 +1,46 @@
+{
+  "id": "journey-walkthrough",
+  "title": "phenotype-journeys — walkthrough",
+  "subtitle": "journey: example",
+  "accent": "#34d399",
+  "width": 1280,
+  "height": 800,
+  "fps": 30,
+  "scenes": [
+    {
+      "src": "assets/step-01.png",
+      "holdSec": 3.5,
+      "callouts": [
+        {
+          "text": "Journey starts",
+          "subText": "Step intent from manifest.json",
+          "atSec": 0.4,
+          "anchor": "top-right"
+        }
+      ]
+    },
+    {
+      "src": "assets/step-02.png",
+      "holdSec": 3.5,
+      "callouts": [
+        {
+          "text": "Action performed",
+          "subText": "blind_description from the journey engine",
+          "atSec": 0.4,
+          "anchor": "top-right"
+        }
+      ],
+      "highlights": [
+        {
+          "x": 200,
+          "y": 300,
+          "width": 400,
+          "height": 120,
+          "label": "target element",
+          "atSec": 0.6,
+          "style": "pulse"
+        }
+      ]
+    }
+  ]
+}
