@@ -93,6 +93,10 @@ enum Cmd {
         /// Batch: force real Anthropic API backend.
         #[arg(long)]
         api: bool,
+        /// Compatibility alias for older consumers: `--mode mock|live|api`.
+        /// Maps to the matching boolean flag at dispatch time.
+        #[arg(long)]
+        mode: Option<String>,
     },
     /// Validate a manifest against the canonical JSONSchema.
     Validate { manifest: PathBuf },
@@ -246,7 +250,25 @@ fn main() -> Result<()> {
             artefacts,
             mock,
             api,
-        } => cmd_verify_dispatch(manifest, live, manifests_dir, tapes_dir, artefacts, mock, api),
+            mode,
+        } => {
+            // --mode <m> is a back-compat alias the WSM3D journeys-gate workflow
+            // used before it was dropped; restore so downstream consumers don't
+            // break when bumping past the silent removal.
+            let (mut live, mut mock, mut api) = (live, mock, api);
+            if let Some(m) = mode.as_deref() {
+                match m.to_ascii_lowercase().as_str() {
+                    "mock" => mock = true,
+                    "live" => live = true,
+                    "api" => api = true,
+                    other => {
+                        eprintln!("unknown --mode '{other}'; expected mock|live|api");
+                        std::process::exit(2);
+                    }
+                }
+            }
+            cmd_verify_dispatch(manifest, live, manifests_dir, tapes_dir, artefacts, mock, api)
+        }
         Cmd::Validate { manifest } => cmd_validate(manifest),
         Cmd::Sync { from, to, kind } => cmd_sync(from, to, kind.into()),
         Cmd::Schema => cmd_schema(),
