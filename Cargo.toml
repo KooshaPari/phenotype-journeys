@@ -3,6 +3,7 @@ resolver = "2"
 members = ["crates/phenotype-journey-core", "crates/klipdot-capture", "bin/phenotype-journey"]
 
 [workspace.package]
+rust-version = "1.75"
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
@@ -16,7 +17,7 @@ thiserror = "2.0"
 anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4.5", features = ["derive"] }
-jsonschema = "0.18"
+jsonschema = "0.46"
 schemars = "1.2"
-reqwest = { version = "0.12", features = ["json", "blocking"] }
+reqwest = { version = "0.13", features = ["json", "blocking"] }
 serde_yaml = "0.9"
