@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/phenotype-journey-core", "bin/phenotype-journey"]
+members = ["crates/phenotype-journey-core", "crates/klipdot-capture", "bin/phenotype-journey"]
 
 [workspace.package]
 version = "0.1.0"
