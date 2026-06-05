@@ -140,6 +140,30 @@ With `--strict`, exits non-zero when any assertion is violated. Without, the
 report prints but the process exits 0. Journeys with zero assertions print a
 loud warning so they cannot hide.
 
+## How to verify a journey manifest
+
+The `phenotype-journey verify` subcommand is the canonical CI gate for journey
+manifests. The first-class surface takes `--manifest <path>` (alias
+`--manifest-path`) and `--docs-root <path>` so it slots directly into phenodocs
+PR #168 and any consumer following the
+[journey-traceability standard](docs/journey-traceability.md):
+
+```bash
+phenotype-journey verify \
+  --manifest docs/journeys/manifests/phenodocs-bootstrap.journey.json \
+  --docs-root docs
+```
+
+The flag pair runs the Claude-describe + Claude-judge verify loop in mock
+mode (offline, deterministic) and also runs the OCR-backed assertion engine
+against `<docs-root>/keyframes/<id>/frame-###.png`, then emits a unified
+JSON envelope. The process exits non-zero when `all_intents_passed` is false
+OR any `must_contain` / `must_not_contain` / `expected_exit` violation trips
+— making the gate a hard fail for the build. The legacy positional
+`phenotype-journey verify <path>` form still works for backwards
+compatibility, and `--live` switches to the real Anthropic API backend when
+the `live` cargo feature is enabled and `ANTHROPIC_API_KEY` is set.
+
 ## Repo layout
 
 ```
