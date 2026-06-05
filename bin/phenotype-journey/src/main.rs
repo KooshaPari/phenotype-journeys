@@ -76,6 +76,19 @@ enum Cmd {
         #[arg(long)]
         live: bool,
 
+        // --- First-class ergonomic surface for the phenodocs CI gate ---
+        /// Explicit single-manifest path (alias of the positional `manifest`).
+        /// Required by the phenodocs PR #168 gate contract; preferred over
+        /// the positional form for script-friendly invocations.
+        #[arg(long, value_name = "PATH", conflicts_with = "manifest")]
+        manifest_path: Option<PathBuf>,
+        /// Docs root containing the journey artefacts (recordings/,
+        /// cli-journeys/keyframes/, manifests/). When supplied, used as the
+        /// artefacts root for the verify pipeline so the gate can resolve
+        /// `<docs-root>/cli-journeys/keyframes/<id>/frame-###.png` paths.
+        #[arg(long, value_name = "PATH")]
+        docs_root: Option<PathBuf>,
+
         // --- Batch mode (replaces verify-manifests.sh) ---
         /// Batch: directory containing `<journey>/manifest.json` subdirs.
         #[arg(long)]
@@ -93,10 +106,6 @@ enum Cmd {
         /// Batch: force real Anthropic API backend.
         #[arg(long)]
         api: bool,
-        /// Compatibility alias for older consumers: `--mode mock|live|api`.
-        /// Maps to the matching boolean flag at dispatch time.
-        #[arg(long)]
-        mode: Option<String>,
     },
     /// Validate a manifest against the canonical JSONSchema.
     Validate { manifest: PathBuf },
@@ -245,30 +254,24 @@ fn main() -> Result<()> {
         Cmd::Verify {
             manifest,
             live,
+            manifest_path,
+            docs_root,
             manifests_dir,
             tapes_dir,
             artefacts,
             mock,
             api,
-            mode,
-        } => {
-            // --mode <m> is a back-compat alias the WSM3D journeys-gate workflow
-            // used before it was dropped; restore so downstream consumers don't
-            // break when bumping past the silent removal.
-            let (mut live, mut mock, mut api) = (live, mock, api);
-            if let Some(m) = mode.as_deref() {
-                match m.to_ascii_lowercase().as_str() {
-                    "mock" => mock = true,
-                    "live" => live = true,
-                    "api" => api = true,
-                    other => {
-                        eprintln!("unknown --mode '{other}'; expected mock|live|api");
-                        std::process::exit(2);
-                    }
-                }
-            }
-            cmd_verify_dispatch(manifest, live, manifests_dir, tapes_dir, artefacts, mock, api)
-        }
+        } => cmd_verify_dispatch(
+            manifest,
+            live,
+            manifest_path,
+            docs_root,
+            manifests_dir,
+            tapes_dir,
+            artefacts,
+            mock,
+            api,
+        ),
         Cmd::Validate { manifest } => cmd_validate(manifest),
         Cmd::Sync { from, to, kind } => cmd_sync(from, to, kind.into()),
         Cmd::Schema => cmd_schema(),
@@ -366,12 +369,22 @@ fn cmd_extract_keyframes(
 fn cmd_verify_dispatch(
     manifest: Option<PathBuf>,
     live: bool,
+    manifest_path: Option<PathBuf>,
+    docs_root: Option<PathBuf>,
     manifests_dir: Option<PathBuf>,
     tapes_dir: Option<PathBuf>,
     artefacts: Option<PathBuf>,
     mock: bool,
     api: bool,
 ) -> Result<()> {
+    // First-class surface for the phenodocs CI gate: `--manifest` (alias
+    // `--manifest-path`) + `--docs-root` resolves the artefacts root
+    // unambiguously. Wired through `cmd_verify_with_root` so the docs root
+    // also drives the assertion engine's keyframe lookup.
+    if let Some(mp) = manifest_path.or(manifest.clone()) {
+        return cmd_verify_with_root(mp, live, docs_root);
+    }
+
     if let Some(mdir) = manifests_dir {
         let tapes = tapes_dir
             .ok_or_else(|| anyhow::anyhow!("--tapes-dir required with --manifests-dir"))?;
@@ -434,6 +447,70 @@ fn cmd_verify(path: PathBuf, live: bool) -> Result<()> {
     let mode = if live { VerifyMode::Live } else { VerifyMode::Mock };
     let v = verify_manifest(&path, mode).with_context(|| format!("verify {}", path.display()))?;
     println!("{}", serde_json::to_string_pretty(&v)?);
+    Ok(())
+}
+
+/// First-class verify path: load the manifest, run the assertion engine
+/// (with the docs root as the artefacts root for keyframe lookup), and run
+/// the Claude-describe+judge loop. Emits a unified JSON envelope that the
+/// phenodocs PR #168 gate parses to decide pass/fail.
+///
+/// When `docs_root` is `None`, the manifest is verified in mock mode and the
+/// assertion engine is skipped (matches the original `cmd_verify` semantics).
+fn cmd_verify_with_root(
+    manifest_path: PathBuf,
+    live: bool,
+    docs_root: Option<PathBuf>,
+) -> Result<()> {
+    let mode = if live { VerifyMode::Live } else { VerifyMode::Mock };
+    let v = verify_manifest(&manifest_path, mode)
+        .with_context(|| format!("verify {}", manifest_path.display()))?;
+
+    // Always materialise a `Manifest` so the assertion engine can run.
+    let raw = std::fs::read_to_string(&manifest_path)
+        .with_context(|| format!("read {}", manifest_path.display()))?;
+    let manifest: Manifest = serde_json::from_str(&raw)
+        .with_context(|| format!("parse {}", manifest_path.display()))?;
+
+    let mut envelope = serde_json::json!({
+        "manifest": manifest_path.display().to_string(),
+        "verify": v,
+    });
+
+    if let Some(docs) = docs_root {
+        // Run the OCR-backed assertion engine against the docs root. The
+        // convention is `<docs-root>/cli-journeys/keyframes/<id>/frame-###.png`,
+        // but the engine accepts any artefacts root, so we pass the docs root
+        // directly — phenodocs layouts co-locate keyframes under
+        // `docs/journeys/cli-journeys/keyframes/`, which is a subtree of
+        // `docs_root`, and the engine resolves per-journey subdirs.
+        match run_on_manifest(&manifest, &docs) {
+            Ok(report) => {
+                envelope["assertions"] = serde_json::to_value(&report)?;
+            }
+            Err(e) => {
+                // Surface the error but still emit the JSON envelope so the
+                // gate can render a useful diagnostic. Non-zero exit comes
+                // from the violation check below.
+                envelope["assertions_error"] = serde_json::Value::String(e.to_string());
+            }
+        }
+    }
+
+    println!("{}", serde_json::to_string_pretty(&envelope)?);
+
+    // Exit non-zero if the verification or assertions failed.
+    if !v.all_intents_passed {
+        anyhow::bail!("verify: all_intents_passed=false for {}", manifest_path.display());
+    }
+    if let Some(report) = envelope.get("assertions").and_then(|a| a.get("passed")).and_then(|p| p.as_bool()) {
+        if !report {
+            anyhow::bail!(
+                "verify: assertion violations in {}",
+                manifest_path.display()
+            );
+        }
+    }
     Ok(())
 }
 
