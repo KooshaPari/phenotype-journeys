@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Phenotype Discussions
+    url: https://github.com/KooshaPari/phenotype-journeys/discussions
+    about: Ask questions, share ideas, and discuss journey modeling with the community.
+  - name: Security disclosure
+    url: https://github.com/KooshaPari/phenotype-journeys/security/advisories/new
+    about: Report vulnerabilities privately (see SECURITY.md).
