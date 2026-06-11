@@ -1,0 +1,56 @@
+# Typo detection configuration for phenotype-journeys.
+# Extends the default typos dictionary with project-specific terms.
+[default.extend-words]
+# Project / org identifiers
+pheno = "pheno"
+phenoctl = "phenoctl"
+# Rust TUI library used in phenotype-journey CLI surfaces
+ratatui = "ratatui"
+# Recovery Time Objective (org-wide SRE vocabulary)
+RTO = "RTO"
+
+[files]
+extend-exclude = [
+    # Lockfiles and snapshots
+    "*.lock",
+    "*.lockb",
+    "Cargo.lock",
+    "bun.lock",
+    # Rust build outputs
+    "target/",
+    # npm / Node build outputs
+    "node_modules/",
+    "dist/",
+    "build/",
+    "out/",
+    "*.tgz",
+    "*.min.js",
+    "*.min.css",
+    # Per-package npm subdirs (avoid duplicate config drift)
+    "npm/*/node_modules/",
+    "npm/*/dist/",
+    "npm/*/out/",
+    "npm/*/build/",
+    "npm/*/*.tgz",
+    # Generated / vendored content
+    "CHANGELOG.md",
+    "schema/manifest.schema.json",
+    "data/",
+    "worklogs/",
+    "docs/operations/",
+    # Binary / OS noise
+    "*.png",
+    "*.jpg",
+    "*.jpeg",
+    "*.gif",
+    "*.ico",
+    "*.svg",
+    "*.pdf",
+    "*.woff",
+    "*.woff2",
+    "*.ttf",
+    "*.eot",
+    "*.mp4",
+    "*.webm",
+    "*.wasm",
+]

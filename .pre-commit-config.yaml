@@ -15,3 +15,11 @@ repos:
       - id: conventional-pre-commit
         stages: [commit-msg]
         args: [feat, fix, docs, style, refactor, perf, test, chore, ci, build, revert]
+
+  - repo: local
+    hooks:
+      - id: typos
+        name: typos
+        entry: typos
+        language: system
+        pass_filenames: false
