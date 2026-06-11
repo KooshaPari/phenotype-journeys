@@ -5,6 +5,9 @@ members = ["crates/phenotype-journey-core", "bin/phenotype-journey"]
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
+# Minimum supported Rust version, kept in lockstep with rust-toolchain.toml.
+# clippy.toml uses a softer 1.75 floor for lint gating only.
+rust-version = "1.83"
 license = "Apache-2.0"
 repository = "https://github.com/KooshaPari/phenotype-journeys"
 authors = ["Phenotype Org"]
