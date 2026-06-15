@@ -18,6 +18,11 @@ on:
 
 permissions: {}
 
+
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   cargo-deny:
     runs-on: ubuntu-24.04
