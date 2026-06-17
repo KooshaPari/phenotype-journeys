@@ -1,0 +1,23 @@
+okf_version: "1.0"
+project:
+  id: koosha.phenotype.phenotype-journeys
+  name: phenotype-journeys
+  charter_ref: charter.md
+  review_ref: review.md
+artifacts:
+  - id: charter
+    path: charter.md
+    kind: governance
+    summary: "test role boundary"
+  - id: intent-root
+    path: intent.md
+    kind: intent
+    summary: "Wave 4 genesis rollout"
+  - id: sota-root
+    path: SOTA.md
+    kind: sota
+    summary: "Rust Tier 1 test orchestration; Py packages remain Tier 2 edges."
+dimensions:
+  technical: docs/sota/technical.md
+provenance:
+  intent_prompts: docs/intent/prompts/
