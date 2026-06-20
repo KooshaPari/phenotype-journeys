@@ -10,6 +10,7 @@ use phenotype_journey_core::{
     validate_manifest, verify_manifest, Annotation, AnnotationKind, AnnotationStyle, Manifest,
     Step, StepAssertions, VerifyMode,
 };
+use phenotype_journeys_observability::prelude::{init_tracing, instrument, info};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
@@ -221,7 +222,13 @@ impl From<CliSyncKind> for SyncKind {
     }
 }
 
+#[instrument(skip_all, fields(command = "main"))]
 fn main() -> Result<()> {
+    let otlp_endpoint = std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
+        .unwrap_or_else(|_| "http://localhost:4317".to_string());
+    init_tracing("phenotype-journey", &otlp_endpoint)
+        .context("failed to initialise OTLP tracing")?;
+    info!(version = env!("CARGO_PKG_VERSION"), "phenotype-journey starting");
     let cli = Cli::parse();
     match cli.command {
         Cmd::Record {

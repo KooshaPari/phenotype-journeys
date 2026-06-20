@@ -1,6 +1,11 @@
 [workspace]
 resolver = "2"
-members = ["crates/phenotype-journey-core", "crates/klipdot-capture", "bin/phenotype-journey"]
+members = [
+  "crates/phenotype-journey-core",
+  "crates/klipdot-capture",
+  "crates/phenotype-journeys-observability",
+  "bin/phenotype-journey",
+]
 
 [workspace.package]
 rust-version = "1.75"
