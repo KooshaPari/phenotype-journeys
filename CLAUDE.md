@@ -1,38 +1,41 @@
 # CLAUDE.md — phenotype-journeys
+#
+# Tier-0 governance for agent context.
+# See hierarchical chain:
+#   ~/.claude/AGENTS.md  ←  repos/AGENTS.md  ←  repos/CLAUDE.md  ←  this
 
-## Project Overview
+## Project
 
-**Name**: phenotype-journeys
-**Purpose**: Journey orchestration and state machine library
-**Language**: Rust
-**Status**: Active
+- **Name**: phenotype-journeys
+- **Purpose**: Journey orchestration and state machine library (Rust)
+- **Status**: Active development
+- **Repository**: https://github.com/KooshaPari/phenotype-journeys
 
-## Development
+## Quick Commands
 
-### Build
-```bash
-cargo build
-```
-
-### Test
-```bash
-cargo test --workspace
-```
-
-### Lint & Format
-```bash
-cargo clippy --workspace
-```
+| Command | Description |
+|---|---|
+| `cargo check --workspace` | Fast compile check |
+| `cargo build --workspace` | Build all crates |
+| `cargo test --workspace` | Run all tests |
+| `cargo clippy --workspace -- -D warnings` | Lint |
+| `cargo fmt --check` | Format check |
+| `cargo deny check` | License/advisory check |
+| `cargo audit` | Security audit |
+| `just ci` | Full CI sweep |
 
 ## Quality Gates
 
-- All tests must pass
-- All lints must pass
-- No suppressions without justification
+- All tests pass
+- No clippy warnings (deny level)
+- `cargo fmt --check` clean
+- `cargo deny check` clean
+- `cargo audit` clean (or documented exceptions)
 
-## Governance References
+## Governance Hierarchy
 
-- **Parent governance**: `/Users/kooshapari/CodeProjects/Phenotype/repos/CLAUDE.md`
-- **Global governance**: `/Users/kooshapari/.claude/CLAUDE.md`
-- **Local agents**: See `AGENTS.md`
-- **Journey traceability**: `docs/journey-traceability.md`
+1. `~/.claude/AGENTS.md` — global agent instructions
+2. `/repos/AGENTS.md` — Phenotype org governance
+3. `/repos/CLAUDE.md` — Phenotype org project guidance
+4. `AGENTS.md` — this repo's agent instructions
+5. `docs/` — technical specifications and annexes

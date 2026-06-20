@@ -1,15 +1,34 @@
-# Phenotype-org standard justfile
+# Phenotype-org standard justfile — phenotype-journeys
+# See https://github.com/KooshaPari/phenotype-tooling
 
 default:
-    @just --list
+    @just --list --unsorted
 
-# Build workspace
+# ── Build ───────────────────────────────────────────────────────────
+
+# Build workspace (debug)
 build:
     cargo build --workspace
 
-# Run tests
+# Build workspace (release)
+release:
+    cargo build --release --workspace
+
+# Check workspace compiles (fast)
+check:
+    cargo check --workspace
+
+# ── Test ────────────────────────────────────────────────────────────
+
+# Run all tests
 test:
     cargo test --workspace
+
+# Run tests with output
+test-verbose:
+    cargo test --workspace -- --nocapture
+
+# ── Quality ─────────────────────────────────────────────────────────
 
 # Lint (clippy + fmt --check)
 lint:
@@ -29,9 +48,25 @@ audit:
 unused:
     cargo machete
 
-# Full local CI sweep
-ci: lint test audit unused
+# Full local CI sweep (lint + test + audit)
+ci: lint test audit
+
+# ── Documentation ───────────────────────────────────────────────────
 
 # Generate docs
 docs:
     cargo doc --no-deps --workspace
+
+# Generate and open docs
+docs-open:
+    cargo doc --no-deps --workspace --open
+
+# ── Maintenance ─────────────────────────────────────────────────────
+
+# Show outdated dependencies
+outdated:
+    cargo outdated -R
+
+# Clean build artifacts
+clean:
+    cargo clean

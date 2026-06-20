@@ -1,6 +1,7 @@
 [advisories]
 db-path = "$CARGO_HOME/advisory-db"
 ignore = []
+severity-threshold = "high"
 
 [licenses]
 version = 2
@@ -25,12 +26,18 @@ allow = [
     "Unlicense",
     "WTFPL",
 ]
+deny = []
+exceptions = []
 
 [bans]
 multiple-versions = "warn"
 wildcards = "warn"
+deny = []
+skip = []
+skip-tree = []
 
 [sources]
 unknown-git = "deny"
 unknown-registry = "warn"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

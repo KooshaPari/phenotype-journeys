@@ -31,3 +31,11 @@ jobs:
       cargo-deny: "false"
       trufflehog: "false"
       working-directory: .
+
+  cliff-template-check:
+    name: Check cliff.toml adoption
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Check cliff.toml template adoption
+        run: ./scripts/check-cliff-template.sh
