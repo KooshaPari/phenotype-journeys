@@ -79,19 +79,21 @@ pub struct Screenshot {
 
 impl Default for Config {
     fn default() -> Self {
-        let home_dir = crate::get_home_dir().unwrap_or_else(|_| {
-            std::env::temp_dir().join(".klipdot")
-        });
-        
+        let home_dir =
+            crate::get_home_dir().unwrap_or_else(|_| std::env::temp_dir().join(".klipdot"));
+
         let now = Utc::now();
-        
+
         Config {
             enabled: true,
             auto_start: false,
             screenshot_dir: home_dir.join(crate::SCREENSHOT_DIR),
             config_file: home_dir.join(crate::CONFIG_FILE),
             poll_interval: crate::DEFAULT_POLL_INTERVAL,
-            image_formats: crate::SUPPORTED_FORMATS.iter().map(|s| s.to_string()).collect(),
+            image_formats: crate::SUPPORTED_FORMATS
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
             max_file_size: crate::MAX_FILE_SIZE,
             compression_quality: crate::IMAGE_QUALITY,
             cleanup_days: crate::DEFAULT_CLEANUP_DAYS,
@@ -130,11 +132,7 @@ impl Default for ShellIntegration {
                 "scp".to_string(),
                 "rsync".to_string(),
             ],
-            aliases: vec![
-                "cp".to_string(),
-                "mv".to_string(),
-                "scp".to_string(),
-            ],
+            aliases: vec!["cp".to_string(), "mv".to_string(), "scp".to_string()],
         }
     }
 }
@@ -154,16 +152,28 @@ impl Default for DisplayServerConfig {
 
 impl Default for ClipboardToolsConfig {
     fn default() -> Self {
-        let mut wayland_tools = crate::WAYLAND_CLIPBOARD_TOOLS.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let mut x11_tools = crate::X11_CLIPBOARD_TOOLS.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        
+        let mut wayland_tools: Vec<String> = crate::WAYLAND_CLIPBOARD_TOOLS
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let mut x11_tools: Vec<String> = crate::X11_CLIPBOARD_TOOLS
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+
         // Add macOS tools to both lists for compatibility
         #[cfg(target_os = "macos")]
         {
             wayland_tools.extend(crate::MACOS_CLIPBOARD_TOOLS.iter().map(|s| s.to_string()));
             x11_tools.extend(crate::MACOS_CLIPBOARD_TOOLS.iter().map(|s| s.to_string()));
         }
-        
+        // Silence "variable does not need to be mutable" on non-macOS builds while
+        // preserving the mutation on macOS where the vectors are extended above.
+        #[cfg(not(target_os = "macos"))]
+        {
+            let _ = (&mut wayland_tools, &mut x11_tools);
+        }
+
         Self {
             wayland_tools,
             x11_tools,
@@ -179,34 +189,61 @@ impl Default for ClipboardToolsConfig {
 impl Default for ScreenshotToolsConfig {
     fn default() -> Self {
         let mut default_args = std::collections::HashMap::new();
-        
+
         // Wayland tools
         default_args.insert("grim".to_string(), vec!["-".to_string()]);
         default_args.insert("wayshot".to_string(), vec!["--stdout".to_string()]);
-        default_args.insert("grimshot".to_string(), vec!["copy".to_string(), "screen".to_string()]);
-        default_args.insert("spectacle".to_string(), vec!["-b".to_string(), "-n".to_string()]);
+        default_args.insert(
+            "grimshot".to_string(),
+            vec!["copy".to_string(), "screen".to_string()],
+        );
+        default_args.insert(
+            "spectacle".to_string(),
+            vec!["-b".to_string(), "-n".to_string()],
+        );
         default_args.insert("flameshot".to_string(), vec!["gui".to_string()]);
-        
+
         // X11 tools
         default_args.insert("scrot".to_string(), vec!["-".to_string()]);
-        default_args.insert("gnome-screenshot".to_string(), vec!["-f".to_string(), "-".to_string()]);
-        default_args.insert("import".to_string(), vec!["-window".to_string(), "root".to_string(), "-".to_string()]);
-        default_args.insert("xfce4-screenshooter".to_string(), vec!["-f".to_string(), "-s".to_string()]);
-        
+        default_args.insert(
+            "gnome-screenshot".to_string(),
+            vec!["-f".to_string(), "-".to_string()],
+        );
+        default_args.insert(
+            "import".to_string(),
+            vec!["-window".to_string(), "root".to_string(), "-".to_string()],
+        );
+        default_args.insert(
+            "xfce4-screenshooter".to_string(),
+            vec!["-f".to_string(), "-s".to_string()],
+        );
+
         // macOS tools
         default_args.insert("screencapture".to_string(), vec!["-c".to_string()]);
         default_args.insert("screenshot".to_string(), vec![]);
-        
-        let mut wayland_tools = crate::WAYLAND_SCREENSHOT_TOOLS.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        let mut x11_tools = crate::X11_SCREENSHOT_TOOLS.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        
+
+        let mut wayland_tools: Vec<String> = crate::WAYLAND_SCREENSHOT_TOOLS
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let mut x11_tools: Vec<String> = crate::X11_SCREENSHOT_TOOLS
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+
         // Add macOS tools to both lists for compatibility
         #[cfg(target_os = "macos")]
         {
             wayland_tools.extend(crate::MACOS_SCREENSHOT_TOOLS.iter().map(|s| s.to_string()));
             x11_tools.extend(crate::MACOS_SCREENSHOT_TOOLS.iter().map(|s| s.to_string()));
         }
-        
+        // Silence "variable does not need to be mutable" on non-macOS builds while
+        // preserving the mutation on macOS where the vectors are extended above.
+        #[cfg(not(target_os = "macos"))]
+        {
+            let _ = (&mut wayland_tools, &mut x11_tools);
+        }
+
         Self {
             wayland_tools,
             x11_tools,
@@ -215,7 +252,7 @@ impl Default for ScreenshotToolsConfig {
             } else {
                 "grim".to_string()
             }),
-            default_args
+            default_args,
         }
     }
 }
@@ -223,7 +260,7 @@ impl Default for ScreenshotToolsConfig {
 impl Config {
     pub fn load_or_create_default() -> Result<Self> {
         let config_path = Self::get_default_config_path()?;
-        
+
         if config_path.exists() {
             Self::load_from_path(&config_path)
         } else {
@@ -232,83 +269,83 @@ impl Config {
             Ok(config)
         }
     }
-    
+
     pub fn load_from_path(path: &PathBuf) -> Result<Self> {
         debug!("Loading config from: {:?}", path);
-        
+
         let content = std::fs::read_to_string(path)?;
         let mut config: Config = serde_json::from_str(&content)?;
-        
+
         // Update the config file path to the one we loaded from
         config.config_file = path.clone();
-        
+
         // Ensure directories exist
         std::fs::create_dir_all(&config.screenshot_dir)?;
-        
+
         info!("Config loaded successfully");
         Ok(config)
     }
-    
+
     pub fn save(&self) -> Result<()> {
         debug!("Saving config to: {:?}", self.config_file);
-        
+
         // Ensure parent directory exists
         if let Some(parent) = self.config_file.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        
+
         let content = serde_json::to_string_pretty(self)?;
         std::fs::write(&self.config_file, content)?;
-        
+
         info!("Config saved successfully");
         Ok(())
     }
-    
+
     pub fn get_default_config_path() -> Result<PathBuf> {
         let config_dir = crate::get_home_dir()?;
         Ok(config_dir.join(crate::CONFIG_FILE))
     }
-    
+
     pub fn get_config_path(&self) -> &Path {
         &self.config_file
     }
-    
+
     pub fn reset_to_default() -> Result<()> {
         let config_path = Self::get_default_config_path()?;
         if config_path.exists() {
             std::fs::remove_file(&config_path)?;
         }
-        
+
         let config = Self::default();
         config.save()?;
-        
+
         info!("Config reset to default");
         Ok(())
     }
-    
+
     pub fn update(&mut self) -> Result<()> {
         self.updated_at = Utc::now();
         self.save()
     }
-    
+
     pub fn is_image_format_supported(&self, extension: &str) -> bool {
         self.image_formats.contains(&extension.to_lowercase())
     }
-    
+
     pub fn get_screenshot_path(&self, filename: &str) -> PathBuf {
         self.screenshot_dir.join(filename)
     }
-    
+
     pub async fn get_recent_screenshots(&self, limit: usize) -> Result<Vec<Screenshot>> {
         let mut screenshots = Vec::new();
-        
+
         if !self.screenshot_dir.exists() {
             return Ok(screenshots);
         }
-        
+
         let mut entries = tokio::fs::read_dir(&self.screenshot_dir).await?;
         let mut files = Vec::new();
-        
+
         while let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
             if path.is_file() {
@@ -321,33 +358,33 @@ impl Config {
                 }
             }
         }
-        
+
         // Sort by modification time (newest first)
         files.sort_by(|a, b| {
             let a_meta = std::fs::metadata(a).unwrap();
             let b_meta = std::fs::metadata(b).unwrap();
             b_meta.modified().unwrap().cmp(&a_meta.modified().unwrap())
         });
-        
+
         for file in files.iter().take(limit) {
             if let Ok(screenshot) = self.create_screenshot_info(file).await {
                 screenshots.push(screenshot);
             }
         }
-        
+
         Ok(screenshots)
     }
-    
+
     pub async fn cleanup_old_screenshots(&self, days: u32) -> Result<usize> {
         let cutoff = Utc::now() - chrono::Duration::days(days as i64);
         let mut count = 0;
-        
+
         if !self.screenshot_dir.exists() {
             return Ok(count);
         }
-        
+
         let mut entries = tokio::fs::read_dir(&self.screenshot_dir).await?;
-        
+
         while let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
             if path.is_file() {
@@ -366,22 +403,25 @@ impl Config {
                 }
             }
         }
-        
+
         info!("Cleaned up {} old screenshots", count);
         Ok(count)
     }
-    
+
     async fn create_screenshot_info(&self, path: &PathBuf) -> Result<Screenshot> {
         let metadata = std::fs::metadata(path)?;
-        let filename = path.file_name()
+        let filename = path
+            .file_name()
             .ok_or_else(|| Error::Format("Invalid filename".to_string()))?
             .to_string_lossy()
             .to_string();
-        
-        let created_at = DateTime::<Utc>::from(metadata.created().unwrap_or_else(|_| {
-            std::time::SystemTime::now()
-        }));
-        
+
+        let created_at = DateTime::<Utc>::from(
+            metadata
+                .created()
+                .unwrap_or_else(|_| std::time::SystemTime::now()),
+        );
+
         let source = if filename.contains("clipboard") {
             "clipboard"
         } else if filename.contains("terminal") {
@@ -392,8 +432,9 @@ impl Config {
             "stdin"
         } else {
             "unknown"
-        }.to_string();
-        
+        }
+        .to_string();
+
         let mime_type = if let Some(ext) = path.extension() {
             match ext.to_str() {
                 Some("png") => "image/png",
@@ -406,8 +447,9 @@ impl Config {
             }
         } else {
             "application/octet-stream"
-        }.to_string();
-        
+        }
+        .to_string();
+
         Ok(Screenshot {
             filename,
             path: path.clone(),
@@ -417,27 +459,35 @@ impl Config {
             mime_type,
         })
     }
-    
+
     pub fn validate(&self) -> Result<()> {
         if self.poll_interval < 100 {
-            return Err(Error::Validation("Poll interval must be at least 100ms".to_string()));
+            return Err(Error::Validation(
+                "Poll interval must be at least 100ms".to_string(),
+            ));
         }
-        
+
         if self.max_file_size < 1024 {
-            return Err(Error::Validation("Max file size must be at least 1KB".to_string()));
+            return Err(Error::Validation(
+                "Max file size must be at least 1KB".to_string(),
+            ));
         }
-        
+
         if self.compression_quality > 100 {
-            return Err(Error::Validation("Compression quality must be between 0-100".to_string()));
+            return Err(Error::Validation(
+                "Compression quality must be between 0-100".to_string(),
+            ));
         }
-        
+
         if self.cleanup_days == 0 {
-            return Err(Error::Validation("Cleanup days must be greater than 0".to_string()));
+            return Err(Error::Validation(
+                "Cleanup days must be greater than 0".to_string(),
+            ));
         }
-        
+
         Ok(())
     }
-    
+
     pub fn get_log_level(&self) -> tracing::Level {
         match self.log_level.to_lowercase().as_str() {
             "error" => tracing::Level::ERROR,
@@ -448,7 +498,7 @@ impl Config {
             _ => tracing::Level::INFO,
         }
     }
-    
+
     pub fn get_display_server(&self) -> crate::DisplayServer {
         if self.display_server.auto_detect {
             crate::detect_display_server()
@@ -463,7 +513,7 @@ impl Config {
             crate::detect_display_server()
         }
     }
-    
+
     pub fn get_wayland_compositor(&self) -> Option<String> {
         if let Some(ref compositor) = self.display_server.wayland_compositor {
             Some(compositor.clone())
@@ -471,10 +521,10 @@ impl Config {
             crate::detect_wayland_compositor()
         }
     }
-    
+
     pub fn get_available_clipboard_tools(&self) -> Vec<String> {
         let mut tools = Vec::new();
-        
+
         // Check preferred tool first
         if let Some(ref preferred) = self.display_server.clipboard_tools.preferred_tool {
             if crate::is_command_available(preferred) {
@@ -482,7 +532,7 @@ impl Config {
                 return tools;
             }
         }
-        
+
         // Get tools based on display server
         match self.get_display_server() {
             crate::DisplayServer::Wayland => {
@@ -529,13 +579,13 @@ impl Config {
                 }
             }
         }
-        
+
         tools
     }
-    
+
     pub fn get_available_screenshot_tools(&self) -> Vec<String> {
         let mut tools = Vec::new();
-        
+
         // Check preferred tool first
         if let Some(ref preferred) = self.display_server.screenshot_tools.preferred_tool {
             if crate::is_command_available(preferred) {
@@ -543,7 +593,7 @@ impl Config {
                 return tools;
             }
         }
-        
+
         // Get tools based on display server
         match self.get_display_server() {
             crate::DisplayServer::Wayland => {
@@ -582,12 +632,14 @@ impl Config {
                 }
             }
         }
-        
+
         tools
     }
-    
+
     pub fn get_screenshot_tool_args(&self, tool: &str) -> Vec<String> {
-        self.display_server.screenshot_tools.default_args
+        self.display_server
+            .screenshot_tools
+            .default_args
             .get(tool)
             .cloned()
             .unwrap_or_default()
@@ -598,7 +650,7 @@ impl Config {
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    
+
     #[test]
     fn test_default_config() {
         let config = Config::default();
@@ -608,46 +660,48 @@ mod tests {
         assert!(config.shell_integration.enabled);
         assert_eq!(config.compression_quality, 90);
     }
-    
+
     #[test]
     fn test_config_validation() {
         let mut config = Config::default();
-        
+
         // Valid config should pass
         assert!(config.validate().is_ok());
-        
+
         // Invalid poll interval
         config.poll_interval = 50;
         assert!(config.validate().is_err());
         config.poll_interval = 1000;
-        
+
         // Invalid compression quality
         config.compression_quality = 150;
         assert!(config.validate().is_err());
         config.compression_quality = 90;
-        
+
         // Invalid cleanup days
         config.cleanup_days = 0;
         assert!(config.validate().is_err());
     }
-    
+
     #[tokio::test]
     async fn test_config_save_load() {
         let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join("config.json");
-        
-        let mut config = Config::default();
-        config.config_file = config_path.clone();
-        config.enabled = false;
-        
+
+        let config = Config {
+            config_file: config_path.clone(),
+            enabled: false,
+            ..Config::default()
+        };
+
         assert!(config.save().is_ok());
         assert!(config_path.exists());
-        
+
         let loaded_config = Config::load_from_path(&config_path).unwrap();
         assert!(!loaded_config.enabled);
         assert_eq!(loaded_config.config_file, config_path);
     }
-    
+
     #[test]
     fn test_image_format_support() {
         let config = Config::default();

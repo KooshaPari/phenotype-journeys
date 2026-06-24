@@ -4,11 +4,17 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "OTel/OTLP observability for the phenotype-journeys workspace (re-exports pheno-tracing)"
+description = "Local observability substrate for the phenotype-journeys workspace: tracing init + typed span/metric carriers. Self-contained — no external fleet dependency."
 
 [dependencies]
-# pheno-tracing is the fleet-canonical OTLP tracer (ADR-012)
-pheno-tracing = { git = "https://github.com/KooshaPari/pheno-tracing", tag = "v0.4.0" }
+# We intentionally depend on the crates.io `tracing` family directly rather
+# than the archived `pheno-tracing` crate. The historical wrapper exists so
+# the rest of the workspace depends on a local crate name; the implementation
+# now ships in-house, which keeps `cargo install --path .` hermetic.
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
+tracing-core = "0.1"
+thiserror = { workspace = true }
 
 [lib]
 path = "src/lib.rs"

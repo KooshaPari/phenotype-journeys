@@ -88,45 +88,24 @@ pub const IMAGE_PROCESS_NAMES: &[&str] = &[
 ];
 
 /// Wayland screenshot tools
-pub const WAYLAND_SCREENSHOT_TOOLS: &[&str] = &[
-    "grim",
-    "wayshot",
-    "grimshot",
-    "spectacle",
-    "flameshot",
-];
+pub const WAYLAND_SCREENSHOT_TOOLS: &[&str] =
+    &["grim", "wayshot", "grimshot", "spectacle", "flameshot"];
 
 /// X11 screenshot tools
-pub const X11_SCREENSHOT_TOOLS: &[&str] = &[
-    "scrot",
-    "gnome-screenshot",
-    "import",
-    "xfce4-screenshooter",
-];
+pub const X11_SCREENSHOT_TOOLS: &[&str] =
+    &["scrot", "gnome-screenshot", "import", "xfce4-screenshooter"];
 
 /// macOS screenshot tools
-pub const MACOS_SCREENSHOT_TOOLS: &[&str] = &[
-    "screencapture",
-    "screenshot",
-];
+pub const MACOS_SCREENSHOT_TOOLS: &[&str] = &["screencapture", "screenshot"];
 
 /// Wayland clipboard tools
-pub const WAYLAND_CLIPBOARD_TOOLS: &[&str] = &[
-    "wl-copy",
-    "wl-paste",
-];
+pub const WAYLAND_CLIPBOARD_TOOLS: &[&str] = &["wl-copy", "wl-paste"];
 
 /// X11 clipboard tools
-pub const X11_CLIPBOARD_TOOLS: &[&str] = &[
-    "xclip",
-    "xsel",
-];
+pub const X11_CLIPBOARD_TOOLS: &[&str] = &["xclip", "xsel"];
 
 /// macOS clipboard tools
-pub const MACOS_CLIPBOARD_TOOLS: &[&str] = &[
-    "pbcopy",
-    "pbpaste",
-];
+pub const MACOS_CLIPBOARD_TOOLS: &[&str] = &["pbcopy", "pbpaste"];
 
 /// Detect the current display server
 pub fn detect_display_server() -> DisplayServer {
@@ -371,11 +350,11 @@ mod tests {
 
     #[test]
     fn test_is_image_file() {
-        assert!(is_image_file(&std::path::Path::new("test.png")));
-        assert!(is_image_file(&std::path::Path::new("test.jpg")));
-        assert!(is_image_file(&std::path::Path::new("test.PNG")));
-        assert!(!is_image_file(&std::path::Path::new("test.txt")));
-        assert!(!is_image_file(&std::path::Path::new("test")));
+        assert!(is_image_file(std::path::Path::new("test.png")));
+        assert!(is_image_file(std::path::Path::new("test.jpg")));
+        assert!(is_image_file(std::path::Path::new("test.PNG")));
+        assert!(!is_image_file(std::path::Path::new("test.txt")));
+        assert!(!is_image_file(std::path::Path::new("test")));
     }
 
     #[test]

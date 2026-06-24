@@ -56,32 +56,26 @@ impl StepAssertions {
 }
 
 /// Rendering kind for an annotation.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Copy, Default, Serialize, Deserialize, JsonSchema, PartialEq, Eq,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum AnnotationKind {
+    #[default]
     Region,
     Pointer,
     Highlight,
 }
 
-impl Default for AnnotationKind {
-    fn default() -> Self {
-        AnnotationKind::Region
-    }
-}
-
 /// Border style for an annotation.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Copy, Default, Serialize, Deserialize, JsonSchema, PartialEq, Eq,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum AnnotationStyle {
+    #[default]
     Solid,
     Dashed,
-}
-
-impl Default for AnnotationStyle {
-    fn default() -> Self {
-        AnnotationStyle::Solid
-    }
 }
 
 /// Bounding-box annotation overlaid onto a step's keyframe.
@@ -216,11 +210,14 @@ pub fn manifest_schema() -> serde_json::Value {
 /// Validate a manifest JSON blob against the canonical schema.
 pub fn validate_manifest(value: &serde_json::Value) -> Result<(), JourneyError> {
     let schema = manifest_schema();
-    let compiled = jsonschema::JSONSchema::compile(&schema)
-        .map_err(|e| JourneyError::Schema(e.to_string()))?;
-    if let Err(errors) = compiled.validate(value) {
-        let msgs: Vec<String> = errors.map(|e| e.to_string()).collect();
-        return Err(JourneyError::Schema(msgs.join("; ")));
+    let compiled =
+        jsonschema::validator_for(&schema).map_err(|e| JourneyError::Schema(e.to_string()))?;
+    if let Err(err) = compiled.validate(value) {
+        // jsonschema 0.46 returns a single `ValidationError`; the `BasicOutput`
+        // variant carries the multi-error aggregate when the validator is built
+        // with `with_draft`/the basic meta-schema. We surface the message
+        // directly — it's already a `String`-shaped `Display` impl.
+        return Err(JourneyError::Schema(err.to_string()));
     }
     Ok(())
 }

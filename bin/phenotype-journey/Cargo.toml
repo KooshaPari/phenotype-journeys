@@ -22,3 +22,8 @@ serde_json = { workspace = true }
 anyhow = { workspace = true }
 serde_yaml = { workspace = true }
 serde = { workspace = true }
+# `#[instrument]` expands to `#[::tracing::instrument(...)]` so the `tracing`
+# crate must be resolvable from the crate root even when we re-export the
+# macro through `phenotype_journeys_observability::prelude`. Keep this in sync
+# with `crates/phenotype-journeys-observability/Cargo.toml`.
+tracing = "0.1"

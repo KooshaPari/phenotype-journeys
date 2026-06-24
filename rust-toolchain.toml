@@ -1,4 +1,9 @@
 [toolchain]
-channel = "1.88"
+# Pinned to a stable that is widely available on rustup (1.85+ is the
+# floor required by `gen` lifetime capture rules in `jsonschema 0.46`
+# transitives; 1.85 also stabilises the 2024 edition prelude hooks some
+# downstream consumers rely on). Bump in lockstep with the consumer-side
+# dev images — do NOT downgrade below 1.85.
+channel = "1.95"
 components = ["rustfmt", "clippy"]
 profile = "minimal"

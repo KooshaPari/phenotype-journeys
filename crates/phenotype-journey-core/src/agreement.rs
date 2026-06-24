@@ -136,12 +136,17 @@ impl AgreementBackend {
     pub fn resolve_concrete(&self, image_available: bool) -> AgreementBackend {
         match self {
             AgreementBackend::Auto => {
-                if image_available && python_module_importable("transformers")
+                if image_available
+                    && python_module_importable("transformers")
                     && python_module_importable("torch")
                 {
-                    AgreementBackend::SigLip { model: default_siglip_model() }
+                    AgreementBackend::SigLip {
+                        model: default_siglip_model(),
+                    }
                 } else if python_module_importable("sentence_transformers") {
-                    AgreementBackend::SentenceTransformer { model: default_st_model() }
+                    AgreementBackend::SentenceTransformer {
+                        model: default_st_model(),
+                    }
                 } else {
                     AgreementBackend::Jaccard
                 }
@@ -289,10 +294,14 @@ impl AgreementScorer for JaccardScorer {
             Agreement::Red
         };
 
-        let missing_in_blind: Vec<String> =
-            intent_set.difference(&blind_set).map(|s| (*s).clone()).collect();
-        let extras_in_blind: Vec<String> =
-            blind_set.difference(&intent_set).map(|s| (*s).clone()).collect();
+        let missing_in_blind: Vec<String> = intent_set
+            .difference(&blind_set)
+            .map(|s| (*s).clone())
+            .collect();
+        let extras_in_blind: Vec<String> = blind_set
+            .difference(&intent_set)
+            .map(|s| (*s).clone())
+            .collect();
 
         AgreementReport {
             status,
@@ -483,7 +492,9 @@ print(prob)
     });
     if let Some(mut stdin) = child.stdin.take() {
         use std::io::Write;
-        stdin.write_all(payload.to_string().as_bytes()).map_err(|e| format!("write: {e}"))?;
+        stdin
+            .write_all(payload.to_string().as_bytes())
+            .map_err(|e| format!("write: {e}"))?;
     }
     let out = child.wait_with_output().map_err(|e| format!("wait: {e}"))?;
     if !out.status.success() {
@@ -598,7 +609,10 @@ mod tests {
             AgreementBackend::parse_flag("siglip"),
             Ok(AgreementBackend::SigLip { .. })
         ));
-        assert!(matches!(AgreementBackend::parse_flag("auto"), Ok(AgreementBackend::Auto)));
+        assert!(matches!(
+            AgreementBackend::parse_flag("auto"),
+            Ok(AgreementBackend::Auto)
+        ));
         assert!(AgreementBackend::parse_flag("bogus").is_err());
     }
 
@@ -613,15 +627,19 @@ mod tests {
         // a path that does not exist. The scorer's internal fallback covers
         // the "sentence_transformers not installed" case too; both paths must
         // yield a Jaccard-fallback report.
-        let scorer = SentenceTransformerScorer { model: "nope".into() };
+        let scorer = SentenceTransformerScorer {
+            model: "nope".into(),
+        };
         let r = scorer.score("click plan button", "triggering the plan action", None);
         // Either we have sentence-transformers installed (real cosine report)
         // or we do not (fallback report). Both are valid; either way the
         // report must be populated and the status classified.
-        assert!(matches!(r.status, Agreement::Green | Agreement::Yellow | Agreement::Red));
+        assert!(matches!(
+            r.status,
+            Agreement::Green | Agreement::Yellow | Agreement::Red
+        ));
         assert!(
-            r.backend == "sentence-transformer"
-                || r.backend.starts_with("jaccard-fallback"),
+            r.backend == "sentence-transformer" || r.backend.starts_with("jaccard-fallback"),
             "unexpected backend: {}",
             r.backend
         );
@@ -633,7 +651,9 @@ mod tests {
     /// Jaccard text-text scorer.
     #[test]
     fn test_siglip_falls_back_when_no_image() {
-        let scorer = SigLipScorer { model: default_siglip_model() };
+        let scorer = SigLipScorer {
+            model: default_siglip_model(),
+        };
         let r = scorer.score("user clicks plan", "the plan action triggers", None);
         assert_eq!(r.backend, "jaccard-fallback:siglip-no-image");
     }
