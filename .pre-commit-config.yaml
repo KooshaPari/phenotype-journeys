@@ -15,3 +15,9 @@ repos:
       - id: conventional-pre-commit
         stages: [commit-msg]
         args: [feat, fix, docs, style, refactor, perf, test, chore, ci, build, revert]
+  - repo: https://github.com/trufflesecurity/trufflehog
+    rev: v3.88.18
+    hooks:
+      - id: trufflehog
+        stages: [pre-commit]
+        args: ["--only-verified"]

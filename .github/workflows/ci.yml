@@ -29,5 +29,5 @@ jobs:
     with:
       cargo-audit: "true"
       cargo-deny: "false"
-      trufflehog: "false"
+      trufflehog: "true"
       working-directory: .

@@ -14,7 +14,71 @@
 //! `live` cargo feature so downstream consumers can opt in without pulling
 //! `reqwest` into mock-only builds.
 
-use super::{JourneyError, Manifest, VerifyMode, Verification};
+use std::time::Duration;
+
+use super::{JourneyError, Manifest, Verification, VerifyMode};
+
+/// Maximum number of retry attempts for transient HTTP failures.
+const MAX_RETRIES: u32 = 3;
+
+/// Initial backoff delay in milliseconds (doubles per attempt).
+const INITIAL_BACKOFF_MS: u64 = 100;
+
+/// Send a POST request with retry + exponential backoff on transient errors.
+///
+/// Retries on:
+/// - Network/IO errors (connection refused, DNS failure, timeout)
+/// - HTTP 5xx responses (server errors)
+///
+/// Non-transient HTTP errors (4xx) are returned immediately without retry.
+fn send_with_retry(
+    client: &reqwest::blocking::Client,
+    url: &str,
+    api_key: &str,
+    body: &serde_json::Value,
+) -> Result<String, JourneyError> {
+    let mut last_error = None;
+    for attempt in 0..MAX_RETRIES {
+        let result = client
+            .post(url)
+            .header("x-api-key", api_key)
+            .header("anthropic-version", "2023-06-01")
+            .json(body)
+            .send();
+
+        match result {
+            Ok(resp) => {
+                let status = resp.status();
+                if status.is_success() {
+                    return resp
+                        .text()
+                        .map_err(|e| JourneyError::Backend(e.to_string()));
+                }
+                if status.is_server_error() {
+                    last_error = Some(JourneyError::Backend(format!(
+                        "server error (HTTP {status})"
+                    )));
+                    // Sleep before retry (not on last attempt).
+                    if attempt + 1 < MAX_RETRIES {
+                        std::thread::sleep(Duration::from_millis(
+                            INITIAL_BACKOFF_MS * (1 << attempt),
+                        ));
+                    }
+                    continue;
+                }
+                // Client error (4xx) — not transient, bail immediately.
+                return Err(JourneyError::Backend(format!("API error (HTTP {status})")));
+            }
+            Err(e) => {
+                last_error = Some(JourneyError::Backend(e.to_string()));
+                if attempt + 1 < MAX_RETRIES {
+                    std::thread::sleep(Duration::from_millis(INITIAL_BACKOFF_MS * (1 << attempt)));
+                }
+            }
+        }
+    }
+    Err(last_error.unwrap_or(JourneyError::Backend("all retries exhausted".into())))
+}
 
 pub fn run(manifest: &Manifest, mode: VerifyMode) -> Result<Verification, JourneyError> {
     match mode {
@@ -43,8 +107,7 @@ pub fn mock(_manifest: &Manifest) -> Verification {
 
 #[cfg(feature = "live")]
 fn live(manifest: &Manifest) -> Result<Verification, JourneyError> {
-    let api_key = std::env::var("ANTHROPIC_API_KEY")
-        .map_err(|_| JourneyError::LiveUnavailable)?;
+    let api_key = std::env::var("ANTHROPIC_API_KEY").map_err(|_| JourneyError::LiveUnavailable)?;
     let client = reqwest::blocking::Client::new();
     let url = "https://api.anthropic.com/v1/messages";
 
@@ -62,14 +125,7 @@ fn live(manifest: &Manifest) -> Result<Verification, JourneyError> {
                 )
             }]
         });
-        let resp = client
-            .post(url)
-            .header("x-api-key", &api_key)
-            .header("anthropic-version", "2023-06-01")
-            .json(&body)
-            .send()
-            .map_err(|e| JourneyError::Backend(e.to_string()))?;
-        let text = resp.text().map_err(|e| JourneyError::Backend(e.to_string()))?;
+        let text = send_with_retry(&client, url, &api_key, &body)?;
         descriptions.push(text);
     }
 
@@ -86,14 +142,7 @@ fn live(manifest: &Manifest) -> Result<Verification, JourneyError> {
             )
         }]
     });
-    let resp = client
-        .post(url)
-        .header("x-api-key", &api_key)
-        .header("anthropic-version", "2023-06-01")
-        .json(&judge_body)
-        .send()
-        .map_err(|e| JourneyError::Backend(e.to_string()))?;
-    let _text = resp.text().map_err(|e| JourneyError::Backend(e.to_string()))?;
+    let _text = send_with_retry(&client, url, &api_key, &judge_body)?;
 
     // Live response parsing is best-effort; callers should treat sub-fields
     // as advisory and fall back to the mock defaults when the judge response
