@@ -18,6 +18,9 @@ Thumbs.db
 # Logs
 *.log
 
+# NPM build artifacts — must not be tracked in git (L32 audit finding)
+*.tgz
+
 # Repo-specific lines preserved from prior .gitignore:
 target/
 node_modules/

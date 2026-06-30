@@ -10,12 +10,16 @@ use phenotype_journey_core::{
     validate_manifest, verify_manifest, Annotation, AnnotationKind, AnnotationStyle, Manifest,
     Step, StepAssertions, VerifyMode,
 };
-use phenotype_journeys_observability::prelude::{init_tracing, instrument, info};
+use phenotype_journeys_observability::prelude::{error, info, init_tracing, instrument, warn};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
 #[derive(Parser, Debug)]
-#[command(name = "phenotype-journey", version, about = "Phenotype journey harness")]
+#[command(
+    name = "phenotype-journey",
+    version,
+    about = "Phenotype journey harness"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Cmd,
@@ -228,7 +232,10 @@ fn main() -> Result<()> {
         .unwrap_or_else(|_| "http://localhost:4317".to_string());
     init_tracing("phenotype-journey", &otlp_endpoint)
         .context("failed to initialise OTLP tracing")?;
-    info!(version = env!("CARGO_PKG_VERSION"), "phenotype-journey starting");
+    info!(
+        version = env!("CARGO_PKG_VERSION"),
+        "phenotype-journey starting"
+    );
     let cli = Cli::parse();
     match cli.command {
         Cmd::Record {
@@ -366,7 +373,11 @@ fn cmd_extract_keyframes(
             "  {}: {} keyframes{}",
             r.tape,
             r.keyframes,
-            if r.used_fallback { " (1fps fallback)" } else { "" }
+            if r.used_fallback {
+                " (1fps fallback)"
+            } else {
+                ""
+            }
         );
     }
     println!("Keyframe extraction complete: {} tape(s)", results.len());
@@ -403,10 +414,10 @@ fn cmd_verify_dispatch(
         } else if mock {
             VerifyBackend::Mock
         } else if std::env::var("ANTHROPIC_API_KEY").is_ok() {
-            eprintln!("Using real Anthropic API (ANTHROPIC_API_KEY is set)");
+            info!("Using real Anthropic API (ANTHROPIC_API_KEY is set)");
             VerifyBackend::Api
         } else {
-            eprintln!("ANTHROPIC_API_KEY not set; using built-in mock");
+            info!("ANTHROPIC_API_KEY not set; using built-in mock");
             VerifyBackend::Mock
         };
         let opts = VerifyOptions {
@@ -427,8 +438,8 @@ fn cmd_verify_dispatch(
         }
         Ok(())
     } else {
-        let mpath =
-            manifest.ok_or_else(|| anyhow::anyhow!("either `manifest` or --manifests-dir required"))?;
+        let mpath = manifest
+            .ok_or_else(|| anyhow::anyhow!("either `manifest` or --manifests-dir required"))?;
         cmd_verify(mpath, live)
     }
 }
@@ -438,11 +449,13 @@ fn cmd_record(tape: PathBuf, out: PathBuf) -> Result<()> {
     let status = std::process::Command::new("vhs")
         .arg(&tape)
         .arg("--output")
-        .arg(out.join(
-            tape.file_stem()
-                .map(|s| s.to_string_lossy().to_string() + ".mp4")
-                .unwrap_or_else(|| "out.mp4".into()),
-        ))
+        .arg(
+            out.join(
+                tape.file_stem()
+                    .map(|s| s.to_string_lossy().to_string() + ".mp4")
+                    .unwrap_or_else(|| "out.mp4".into()),
+            ),
+        )
         .status()
         .with_context(|| "failed to invoke `vhs` — install charmbracelet/vhs")?;
     anyhow::ensure!(status.success(), "vhs exited non-zero");
@@ -451,7 +464,11 @@ fn cmd_record(tape: PathBuf, out: PathBuf) -> Result<()> {
 }
 
 fn cmd_verify(path: PathBuf, live: bool) -> Result<()> {
-    let mode = if live { VerifyMode::Live } else { VerifyMode::Mock };
+    let mode = if live {
+        VerifyMode::Live
+    } else {
+        VerifyMode::Mock
+    };
     let v = verify_manifest(&path, mode).with_context(|| format!("verify {}", path.display()))?;
     println!("{}", serde_json::to_string_pretty(&v)?);
     Ok(())
@@ -469,15 +486,19 @@ fn cmd_verify_with_root(
     live: bool,
     docs_root: Option<PathBuf>,
 ) -> Result<()> {
-    let mode = if live { VerifyMode::Live } else { VerifyMode::Mock };
+    let mode = if live {
+        VerifyMode::Live
+    } else {
+        VerifyMode::Mock
+    };
     let v = verify_manifest(&manifest_path, mode)
         .with_context(|| format!("verify {}", manifest_path.display()))?;
 
     // Always materialise a `Manifest` so the assertion engine can run.
     let raw = std::fs::read_to_string(&manifest_path)
         .with_context(|| format!("read {}", manifest_path.display()))?;
-    let manifest: Manifest = serde_json::from_str(&raw)
-        .with_context(|| format!("parse {}", manifest_path.display()))?;
+    let manifest: Manifest =
+        serde_json::from_str(&raw).with_context(|| format!("parse {}", manifest_path.display()))?;
 
     let mut envelope = serde_json::json!({
         "manifest": manifest_path.display().to_string(),
@@ -508,9 +529,16 @@ fn cmd_verify_with_root(
 
     // Exit non-zero if the verification or assertions failed.
     if !v.all_intents_passed {
-        anyhow::bail!("verify: all_intents_passed=false for {}", manifest_path.display());
+        anyhow::bail!(
+            "verify: all_intents_passed=false for {}",
+            manifest_path.display()
+        );
     }
-    if let Some(report) = envelope.get("assertions").and_then(|a| a.get("passed")).and_then(|p| p.as_bool()) {
+    if let Some(report) = envelope
+        .get("assertions")
+        .and_then(|a| a.get("passed"))
+        .and_then(|p| p.as_bool())
+    {
         if !report {
             anyhow::bail!(
                 "verify: assertion violations in {}",
@@ -522,8 +550,7 @@ fn cmd_verify_with_root(
 }
 
 fn cmd_validate(path: PathBuf) -> Result<()> {
-    let raw = std::fs::read_to_string(&path)
-        .with_context(|| format!("read {}", path.display()))?;
+    let raw = std::fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
     let value: serde_json::Value = serde_json::from_str(&raw)?;
     validate_manifest(&value)?;
     println!("ok: {}", path.display());
@@ -531,8 +558,16 @@ fn cmd_validate(path: PathBuf) -> Result<()> {
 }
 
 fn cmd_sync(from: PathBuf, to: PathBuf, kind: SyncKind) -> Result<()> {
-    anyhow::ensure!(from.is_dir(), "--from must be a directory: {}", from.display());
-    let opts = SyncOptions { from, to: to.clone(), kind };
+    anyhow::ensure!(
+        from.is_dir(),
+        "--from must be a directory: {}",
+        from.display()
+    );
+    let opts = SyncOptions {
+        from,
+        to: to.clone(),
+        kind,
+    };
     let n = sync_artefacts(&opts)?;
     println!("Synced {} items to {}", n, to.display());
     Ok(())
@@ -550,7 +585,7 @@ fn cmd_check_verified(roots: Vec<PathBuf>) -> Result<()> {
     let mut manifests: Vec<PathBuf> = Vec::new();
     for root in &roots {
         if !root.exists() {
-            eprintln!("warn: root does not exist, skipping: {}", root.display());
+            warn!("root does not exist, skipping: {}", root.display());
             continue;
         }
         collect_manifest_jsons(root, &mut manifests)?;
@@ -576,13 +611,13 @@ fn cmd_check_verified(roots: Vec<PathBuf>) -> Result<()> {
         return Ok(());
     }
 
-    eprintln!(
+    error!(
         "check-verified: FAIL — {} of {} manifest(s) lack a sibling manifest.verified.json:",
         unverified.len(),
         manifests.len()
     );
     for m in &unverified {
-        eprintln!("  missing verified: {}", m.display());
+        error!("  missing verified: {}", m.display());
     }
     anyhow::bail!(
         "{} unverified manifest(s); run `phenotype-journey verify --manifests-dir ...` before push",
@@ -603,10 +638,7 @@ fn collect_manifest_jsons(root: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
         for entry in rd.flatten() {
             let p = entry.path();
             if p.is_dir() {
-                let name = p
-                    .file_name()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("");
+                let name = p.file_name().and_then(|s| s.to_str()).unwrap_or("");
                 if name.starts_with('.')
                     || matches!(name, "node_modules" | "target" | "dist" | "build")
                 {
@@ -663,8 +695,8 @@ fn cmd_assert(
         overlay_assertions(&mut manifest, &intents_path)
             .with_context(|| format!("overlay {}", intents_path.display()))?;
     } else {
-        eprintln!(
-            "warn: no intents YAML at {} — continuing with manifest-embedded assertions only",
+        warn!(
+            "no intents YAML at {} — continuing with manifest-embedded assertions only",
             intents_path.display()
         );
     }
@@ -675,8 +707,8 @@ fn cmd_assert(
     print_report(&report);
 
     if report.no_assertions {
-        eprintln!(
-            "warn: journey '{}' has zero steps with assertions — consider adding must_contain / must_not_contain",
+        warn!(
+            "journey '{}' has zero steps with assertions — consider adding must_contain / must_not_contain",
             report.journey_id
         );
     }
@@ -805,7 +837,11 @@ fn cmd_annotate(
             .ok_or_else(|| anyhow::anyhow!("could not derive artefacts root; pass --artefacts"))?,
     };
 
-    let level = if ocr_words { TsvLevel::Word } else { TsvLevel::Line };
+    let level = if ocr_words {
+        TsvLevel::Word
+    } else {
+        TsvLevel::Line
+    };
 
     let steps_len = manifest.steps.len();
     for step in manifest.steps.iter_mut() {
@@ -814,8 +850,8 @@ fn cmd_annotate(
             .join(&manifest.id)
             .join(&step.screenshot_path);
         if !frame.exists() {
-            eprintln!(
-                "warn: skipping step {}: keyframe {} not found",
+            warn!(
+                "skipping step {}: keyframe {} not found",
                 step.index,
                 frame.display()
             );
@@ -838,7 +874,7 @@ fn cmd_annotate(
                 .map(|p| p.join("manifest.verified.json"))
                 .unwrap_or_else(|| PathBuf::from("manifest.verified.json"));
             std::fs::write(&target, serde_json::to_vec_pretty(&manifest)?)?;
-            eprintln!("wrote {}", target.display());
+            info!("wrote {}", target.display());
         }
         AnnotateTarget::Yaml => {
             let yaml_path = yaml.unwrap_or_else(|| {
@@ -848,11 +884,11 @@ fn cmd_annotate(
             });
             merge_annotations_into_yaml(&yaml_path, &manifest)
                 .with_context(|| format!("merge into {}", yaml_path.display()))?;
-            eprintln!("merged annotations into {}", yaml_path.display());
+            info!("merged annotations into {}", yaml_path.display());
         }
     }
 
-    eprintln!(
+    info!(
         "annotated {} keyframes via tesseract ({} level, min_conf={})",
         steps_len,
         if ocr_words { "word" } else { "line" },
@@ -876,11 +912,7 @@ enum TsvLevel {
 /// word-level rows into their parent line when `TsvLevel::Line` is selected
 /// (tesseract does not emit a line-level bbox directly in TSV; we union the
 /// word bboxes per (block,par,line) triple).
-fn tesseract_annotate(
-    frame: &Path,
-    level: TsvLevel,
-    min_conf: i32,
-) -> Result<Vec<Annotation>> {
+fn tesseract_annotate(frame: &Path, level: TsvLevel, min_conf: i32) -> Result<Vec<Annotation>> {
     let out = std::process::Command::new("tesseract")
         .arg(frame)
         .arg("-")
@@ -957,14 +989,13 @@ fn parse_tesseract_tsv(tsv: &str, level: TsvLevel, min_conf: i32) -> Result<Vec<
                 palette_idx += 1;
             }
             TsvLevel::Line => {
-                let entry =
-                    lines_map.entry((block, par, line)).or_insert((
-                        i32::MAX,
-                        i32::MAX,
-                        0,
-                        0,
-                        Vec::new(),
-                    ));
+                let entry = lines_map.entry((block, par, line)).or_insert((
+                    i32::MAX,
+                    i32::MAX,
+                    0,
+                    0,
+                    Vec::new(),
+                ));
                 entry.0 = entry.0.min(left);
                 entry.1 = entry.1.min(top);
                 entry.2 = entry.2.max(left + width);
@@ -1052,8 +1083,14 @@ fn merge_annotations_into_yaml(yaml_path: &Path, manifest: &Manifest) -> Result<
             m.insert(Value::String("annotations".into()), ann_yaml);
         } else {
             let mut new = Mapping::new();
-            new.insert(Value::String("index".into()), Value::Number(step.index.into()));
-            new.insert(Value::String("intent".into()), Value::String(step.intent.clone()));
+            new.insert(
+                Value::String("index".into()),
+                Value::Number(step.index.into()),
+            );
+            new.insert(
+                Value::String("intent".into()),
+                Value::String(step.intent.clone()),
+            );
             new.insert(Value::String("annotations".into()), ann_yaml);
             steps_seq.push(Value::Mapping(new));
         }
@@ -1105,3 +1142,198 @@ mod annotate_tests {
     }
 }
 
+#[cfg(test)]
+mod binary_tests {
+    use super::*;
+
+    #[test]
+    fn truncate_short_string_unchanged() {
+        assert_eq!(truncate("hello", 10), "hello");
+    }
+
+    #[test]
+    fn truncate_long_string_truncated() {
+        let result = truncate("hello world this is a long string", 10);
+        // "hello wor" (9 chars) + "…" (multi-byte) = 10 chars, bytes >10
+        assert!(result.chars().count() <= 11);
+        assert!(result.starts_with("hello wor"));
+    }
+
+    #[test]
+    fn truncate_exact_boundary() {
+        assert_eq!(truncate("1234567890", 10), "1234567890");
+    }
+
+    #[test]
+    fn truncate_empty_string() {
+        assert_eq!(truncate("", 5), "");
+    }
+
+    #[test]
+    fn find_step_mut_returns_matching_step() {
+        let mut steps = vec![
+            Step {
+                index: 0,
+                slug: "first".into(),
+                ..default_step()
+            },
+            Step {
+                index: 1,
+                slug: "second".into(),
+                ..default_step()
+            },
+            Step {
+                index: 2,
+                slug: "third".into(),
+                ..default_step()
+            },
+        ];
+        let found = find_step_mut(&mut steps, 1);
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().slug, "second");
+    }
+
+    #[test]
+    fn find_step_mut_returns_none_for_missing() {
+        let mut steps = vec![Step {
+            index: 0,
+            slug: "only".into(),
+            ..default_step()
+        }];
+        assert!(find_step_mut(&mut steps, 99).is_none());
+    }
+
+    #[test]
+    fn find_step_mut_empty_slice() {
+        let mut steps: Vec<Step> = vec![];
+        assert!(find_step_mut(&mut steps, 0).is_none());
+    }
+
+    #[test]
+    fn manifest_schema_emits_valid_json_schema() {
+        let schema = manifest_schema();
+        let json = serde_json::to_value(&schema).unwrap();
+        assert_eq!(json["title"], "Manifest");
+        assert!(json.get("properties").is_some());
+        let props = json["properties"].as_object().unwrap();
+        assert!(props.contains_key("id"));
+        assert!(props.contains_key("intent"));
+        assert!(props.contains_key("steps"));
+    }
+
+    #[test]
+    fn validate_valid_manifest_passes() {
+        let manifest = Manifest {
+            id: "test-journey".into(),
+            intent: "Test".into(),
+            recording: None,
+            recording_gif: None,
+            keyframe_count: 1,
+            passed: false,
+            steps: vec![Step {
+                index: 0,
+                slug: "step-0".into(),
+                intent: "test step".into(),
+                screenshot_path: "frame-001.png".into(),
+                description: None,
+                blind_description: None,
+                judge_score: None,
+                assertions: None,
+                annotations: None,
+                agreement: None,
+            }],
+            verification: None,
+        };
+        let json = serde_json::to_value(&manifest).unwrap();
+        assert!(validate_manifest(&json).is_ok());
+    }
+
+    #[test]
+    fn validate_invalid_manifest_lacks_required_field() {
+        let manifest = Manifest {
+            id: "test".into(),
+            intent: "Test".into(),
+            recording: None,
+            recording_gif: None,
+            keyframe_count: 1,
+            passed: false,
+            steps: vec![Step {
+                index: 0,
+                slug: "step-0".into(),
+                intent: "test".into(),
+                screenshot_path: "frame-001.png".into(),
+                description: None,
+                blind_description: None,
+                judge_score: None,
+                assertions: None,
+                annotations: None,
+                agreement: None,
+            }],
+            verification: None,
+        };
+        let mut json = serde_json::to_value(&manifest).unwrap();
+        json.as_object_mut().unwrap().remove("id");
+        assert!(validate_manifest(&json).is_err());
+    }
+
+    #[test]
+    fn overlay_assertions_merges_from_intents_yaml() {
+        let dir = std::env::temp_dir().join(format!(
+            "overlay-test-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let yaml_path = dir.join("test.intents.yaml");
+        std::fs::write(
+            &yaml_path,
+            "journey: test\nsteps:\n  - index: 0\n    assertions:\n      must_contain: [\"hello\"]\n",
+        )
+        .unwrap();
+
+        let mut manifest = Manifest {
+            id: "test".into(),
+            intent: "test".into(),
+            recording: None,
+            recording_gif: None,
+            keyframe_count: 1,
+            passed: false,
+            steps: vec![Step {
+                index: 0,
+                slug: "step-0".into(),
+                intent: "test step".into(),
+                screenshot_path: "frame-001.png".into(),
+                description: None,
+                blind_description: None,
+                judge_score: None,
+                assertions: None,
+                annotations: None,
+                agreement: None,
+            }],
+            verification: None,
+        };
+
+        overlay_assertions(&mut manifest, &yaml_path).unwrap();
+        assert!(manifest.steps[0].assertions.is_some());
+        let a = manifest.steps[0].assertions.as_ref().unwrap();
+        assert_eq!(a.must_contain, vec!["hello"]);
+    }
+
+    fn default_step() -> Step {
+        Step {
+            index: 0,
+            slug: String::new(),
+            intent: String::new(),
+            screenshot_path: String::new(),
+            description: None,
+            blind_description: None,
+            judge_score: None,
+            assertions: None,
+            annotations: None,
+            agreement: None,
+        }
+    }
+}

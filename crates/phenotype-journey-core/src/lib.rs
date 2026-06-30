@@ -216,11 +216,14 @@ pub fn manifest_schema() -> serde_json::Value {
 /// Validate a manifest JSON blob against the canonical schema.
 pub fn validate_manifest(value: &serde_json::Value) -> Result<(), JourneyError> {
     let schema = manifest_schema();
-    let compiled = jsonschema::JSONSchema::compile(&schema)
-        .map_err(|e| JourneyError::Schema(e.to_string()))?;
-    if let Err(errors) = compiled.validate(value) {
-        let msgs: Vec<String> = errors.map(|e| e.to_string()).collect();
-        return Err(JourneyError::Schema(msgs.join("; ")));
+    let validator =
+        jsonschema::validator_for(&schema).map_err(|e| JourneyError::Schema(e.to_string()))?;
+    let errors: Vec<String> = validator
+        .iter_errors(value)
+        .map(|e| e.to_string())
+        .collect();
+    if !errors.is_empty() {
+        return Err(JourneyError::Schema(errors.join("; ")));
     }
     Ok(())
 }

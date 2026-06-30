@@ -113,7 +113,14 @@ pub fn record_all(opts: &RecordOptions) -> Result<RecordSummary, JourneyError> {
     let results: Vec<TapeResult> = if opts.parallel <= 1 {
         tapes
             .iter()
-            .map(|t| run_one_tape(t, &opts.recordings_dir, opts.cwd.as_deref(), env_path.as_deref()))
+            .map(|t| {
+                run_one_tape(
+                    t,
+                    &opts.recordings_dir,
+                    opts.cwd.as_deref(),
+                    env_path.as_deref(),
+                )
+            })
             .collect()
     } else {
         // rayon-free: use std threads, bounded by opts.parallel.
@@ -455,22 +462,28 @@ pub fn verify_all(opts: &VerifyOptions) -> Result<VerifyAllResult, JourneyError>
     })
 }
 
-fn verify_one(manifest_path: &Path, opts: &VerifyOptions) -> Result<VerifyJourneyResult, JourneyError> {
+fn verify_one(
+    manifest_path: &Path,
+    opts: &VerifyOptions,
+) -> Result<VerifyJourneyResult, JourneyError> {
     let raw = std::fs::read_to_string(manifest_path)?;
     let mut manifest: Manifest = serde_json::from_str(&raw)?;
     let journey = manifest.id.clone();
 
-    let intents_path = opts
-        .tapes_dir
-        .join(format!("{}.intents.yaml", journey));
+    let intents_path = opts.tapes_dir.join(format!("{}.intents.yaml", journey));
 
     let mut traces_to: Option<serde_json::Value> = None;
     if intents_path.exists() {
         let y = std::fs::read_to_string(&intents_path)?;
-        let parsed: IntentsFile = serde_yaml::from_str(&y)
-            .map_err(|e| JourneyError::Backend(format!("parse yaml {}: {}", intents_path.display(), e)))?;
+        let parsed: IntentsFile = serde_yaml::from_str(&y).map_err(|e| {
+            JourneyError::Backend(format!("parse yaml {}: {}", intents_path.display(), e))
+        })?;
         for it in parsed.steps {
-            if let Some(step) = manifest.steps.iter_mut().find(|s: &&mut Step| s.index == it.index) {
+            if let Some(step) = manifest
+                .steps
+                .iter_mut()
+                .find(|s: &&mut Step| s.index == it.index)
+            {
                 // intent overlay: intents YAML wins for intent text
                 if let Some(i) = it.intent {
                     step.intent = i;
@@ -515,10 +528,8 @@ fn verify_one(manifest_path: &Path, opts: &VerifyOptions) -> Result<VerifyJourne
         // pass. The backend is logged on the report so the UI tooltip can
         // show `SigLIP 0.42` vs `Jaccard 0.0` vs `Sentence 0.71`.
         let blind = step.blind_description.clone().unwrap_or_default();
-        let keyframe = agreement::resolve_keyframe(
-            Some(&opts.artefacts_root),
-            &step.screenshot_path,
-        );
+        let keyframe =
+            agreement::resolve_keyframe(Some(&opts.artefacts_root), &step.screenshot_path);
         step.agreement = Some(agreement::score_with(
             &agreement_backend,
             &step.intent,
@@ -662,7 +673,9 @@ pub fn sync_artefacts(opts: &SyncOptions) -> Result<usize, JourneyError> {
 fn sniff_kind(from: &Path) -> SyncKind {
     if from.join("tapes").is_dir() && from.join("recordings").is_dir() {
         SyncKind::CliJourneys
-    } else if from.join("playwright.config.ts").exists() || from.file_name().map(|n| n == "journeys").unwrap_or(false) {
+    } else if from.join("playwright.config.ts").exists()
+        || from.file_name().map(|n| n == "journeys").unwrap_or(false)
+    {
         SyncKind::StreamlitJourneys
     } else if from.file_name().map(|n| n == "adr").unwrap_or(false) {
         SyncKind::Adrs
@@ -1027,7 +1040,9 @@ steps: []
             serde_json::from_slice(&fs::read(manifests.join("manifest.verified.json")).unwrap())
                 .unwrap();
         assert_eq!(v["passed"], false);
-        let violations = v["verification"]["assertion_violations"].as_array().unwrap();
+        let violations = v["verification"]["assertion_violations"]
+            .as_array()
+            .unwrap();
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0]["kind"], "MustContain");
     }

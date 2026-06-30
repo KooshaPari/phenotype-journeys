@@ -20,7 +20,7 @@ jobs:
     uses: KooshaPari/phenoShared/.github/workflows/reusable/rust-quality.yml@f5343b1d349e523df2fe44f94d8f25d2ec320c6d
     with:
       rust-version: stable
-      coverage-threshold: 0
+      coverage-threshold: 20
       working-directory: .
 
   security-scan:

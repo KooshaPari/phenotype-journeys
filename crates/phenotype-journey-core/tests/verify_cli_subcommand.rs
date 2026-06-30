@@ -34,7 +34,8 @@ fn write_fixture(dir: &PathBuf, journey: &str, file: &str, content: &str) -> Pat
 fn bootstrap_manifest(journey: &str) -> Manifest {
     Manifest {
         id: journey.into(),
-        intent: "Clone phenodocs, install, run dev server, see journey-traceability page render".into(),
+        intent: "Clone phenodocs, install, run dev server, see journey-traceability page render"
+            .into(),
         recording: Some(format!("cli-journeys/recordings/{journey}.gif")),
         recording_gif: Some(format!("cli-journeys/recordings/{journey}.gif")),
         keyframe_count: 3,
@@ -125,7 +126,11 @@ fn verify_subcommand_passes_bootstrap_fixture() {
         .join("manifests")
         .join("phenodocs-bootstrap.journey.json");
     fs::create_dir_all(manifest_path.parent().unwrap()).unwrap();
-    fs::write(&manifest_path, serde_json::to_vec_pretty(&manifest).unwrap()).unwrap();
+    fs::write(
+        &manifest_path,
+        serde_json::to_vec_pretty(&manifest).unwrap(),
+    )
+    .unwrap();
 
     // Stage three keyframes with OCR text that satisfies all assertions.
     write_fixture(
@@ -162,7 +167,11 @@ fn verify_subcommand_passes_bootstrap_fixture() {
     let report = run_on_manifest(&manifest, &docs_root)
         .expect("assertion engine must run against docs root");
     std::env::remove_var(OCR_CMD_ENV);
-    assert!(report.passed, "expected zero violations, got: {:?}", report.violations);
+    assert!(
+        report.passed,
+        "expected zero violations, got: {:?}",
+        report.violations
+    );
     assert!(!report.no_assertions);
     assert_eq!(report.journey_id, "phenodocs-bootstrap");
     assert_eq!(report.violations.len(), 0);
@@ -179,7 +188,11 @@ fn verify_subcommand_flags_present_on_manifest_path() {
     let tmp = tempdir();
     let manifest = bootstrap_manifest("phenodocs-bootstrap");
     let manifest_path = tmp.join("manifest.json");
-    fs::write(&manifest_path, serde_json::to_vec_pretty(&manifest).unwrap()).unwrap();
+    fs::write(
+        &manifest_path,
+        serde_json::to_vec_pretty(&manifest).unwrap(),
+    )
+    .unwrap();
 
     // Both call styles (positional + named flag) must produce identical
     // Verification payloads. The CLI dispatch in

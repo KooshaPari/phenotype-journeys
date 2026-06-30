@@ -14,7 +14,7 @@
 //! `live` cargo feature so downstream consumers can opt in without pulling
 //! `reqwest` into mock-only builds.
 
-use super::{JourneyError, Manifest, VerifyMode, Verification};
+use super::{JourneyError, Manifest, Verification, VerifyMode};
 
 pub fn run(manifest: &Manifest, mode: VerifyMode) -> Result<Verification, JourneyError> {
     match mode {
@@ -43,8 +43,7 @@ pub fn mock(_manifest: &Manifest) -> Verification {
 
 #[cfg(feature = "live")]
 fn live(manifest: &Manifest) -> Result<Verification, JourneyError> {
-    let api_key = std::env::var("ANTHROPIC_API_KEY")
-        .map_err(|_| JourneyError::LiveUnavailable)?;
+    let api_key = std::env::var("ANTHROPIC_API_KEY").map_err(|_| JourneyError::LiveUnavailable)?;
     let client = reqwest::blocking::Client::new();
     let url = "https://api.anthropic.com/v1/messages";
 
@@ -69,7 +68,9 @@ fn live(manifest: &Manifest) -> Result<Verification, JourneyError> {
             .json(&body)
             .send()
             .map_err(|e| JourneyError::Backend(e.to_string()))?;
-        let text = resp.text().map_err(|e| JourneyError::Backend(e.to_string()))?;
+        let text = resp
+            .text()
+            .map_err(|e| JourneyError::Backend(e.to_string()))?;
         descriptions.push(text);
     }
 
@@ -93,7 +94,9 @@ fn live(manifest: &Manifest) -> Result<Verification, JourneyError> {
         .json(&judge_body)
         .send()
         .map_err(|e| JourneyError::Backend(e.to_string()))?;
-    let _text = resp.text().map_err(|e| JourneyError::Backend(e.to_string()))?;
+    let _text = resp
+        .text()
+        .map_err(|e| JourneyError::Backend(e.to_string()))?;
 
     // Live response parsing is best-effort; callers should treat sub-fields
     // as advisory and fall back to the mock defaults when the judge response
