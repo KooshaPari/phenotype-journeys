@@ -44,3 +44,5 @@ vision = ["dep:objc2", "dep:objc2-foundation", "dep:objc2-vision"]
 
 [dev-dependencies]
 serde_json = { workspace = true }
+# serial_test serialises env-var-mutating tests to prevent race conditions.
+serial_test = "3"

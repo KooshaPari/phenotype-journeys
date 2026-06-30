@@ -29,8 +29,12 @@ audit:
 unused:
     cargo machete
 
+# Guard against silent schema drift (L32 git-regression guard)
+check-schema-regression:
+    ./scripts/check-schema-regression.sh
+
 # Full local CI sweep
-ci: lint test audit unused
+ci: lint test audit unused check-schema-regression
 
 # Generate docs
 docs:

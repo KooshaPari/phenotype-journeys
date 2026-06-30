@@ -57,10 +57,7 @@ fn prefix_recording_flags_error_substring() {
             assertions: Some(StepAssertions {
                 must_contain: vec![],
                 must_contain_regex: vec![],
-                must_not_contain: vec![
-                    "error:".into(),
-                    "unexpected argument".into(),
-                ],
+                must_not_contain: vec!["error:".into(), "unexpected argument".into()],
                 expected_exit: None,
                 ocr_required: true,
             }),

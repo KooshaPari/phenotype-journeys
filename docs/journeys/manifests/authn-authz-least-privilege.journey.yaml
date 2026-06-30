@@ -1,0 +1,52 @@
+# Journey: authn/authz least-privilege enforcement
+# FR: FR-PHENOTYPE_JOURNEYS-003
+# NFR: NFR-PHENOTYPE_JOURNEYS-SECURITY-001
+id: authn-authz-least-privilege
+intent: >
+  The verification path enforces least-privilege: unauthenticated callers
+  receive an explicit 401/403 rejection, and a caller with the correct scope
+  succeeds — with all access attempts recorded in the audit log.
+fr_ids:
+  - FR-PHENOTYPE_JOURNEYS-003
+nfr_ids:
+  - NFR-PHENOTYPE_JOURNEYS-SECURITY-001
+steps:
+  - index: 0
+    slug: unauthenticated-verify-denied
+    intent: >
+      Call the verify endpoint without credentials; expect HTTP 401 and a body
+      containing "unauthorized" — no manifest data is returned.
+    screenshot_path: assets/rich-media/phenotype-journeys/authn-denied-step0.png
+    assertions:
+      expected_exit: 1
+      must_contain:
+        - "unauthorized"
+      must_not_contain:
+        - '"overall_score"'
+  - index: 1
+    slug: wrong-scope-forbidden
+    intent: >
+      Call the verify endpoint with a token scoped to `read:manifests` only,
+      attempting a `write:verify` action; expect HTTP 403 and a body containing
+      "forbidden".
+    screenshot_path: assets/rich-media/phenotype-journeys/authn-forbidden-step1.png
+    assertions:
+      expected_exit: 1
+      must_contain:
+        - "forbidden"
+  - index: 2
+    slug: scoped-verify-succeeds
+    intent: >
+      Call the verify endpoint with a token that includes the `write:verify`
+      scope; expect HTTP 200 and overall_score in the response body.
+    screenshot_path: assets/rich-media/phenotype-journeys/authn-ok-step2.png
+    assertions:
+      expected_exit: 0
+      must_contain:
+        - "overall_score"
+gates:
+  - auth negative fixture tests pass (denied scope, missing token)
+  - scoped happy-path fixture test passes
+  - audit log assertions confirm all attempts are recorded
+  - This manifest validates against manifest.schema.json
+status: authored

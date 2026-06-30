@@ -1,0 +1,40 @@
+# Journey: manifest schema validation (valid + invalid bundles)
+# FR: FR-PHENOTYPE_JOURNEYS-008
+# NFR: NFR-PHENOTYPE_JOURNEYS-CONTRACT-001
+id: manifest-schema-validation
+intent: >
+  The phenotype-journey schema validator accepts a well-formed manifest and
+  rejects a deliberately invalid one, printing a structured error report in
+  the rejection case — confirming the schema contract cannot silently drift.
+fr_ids:
+  - FR-PHENOTYPE_JOURNEYS-008
+nfr_ids:
+  - NFR-PHENOTYPE_JOURNEYS-CONTRACT-001
+steps:
+  - index: 0
+    slug: validate-valid-manifest
+    intent: >
+      Run `phenotype-journey validate --manifest
+      tests/fixtures/valid-manifest.json`; expect exit code 0 and output
+      containing "valid".
+    screenshot_path: assets/rich-media/phenotype-journeys/schema-valid-step0.png
+    assertions:
+      expected_exit: 0
+      must_contain:
+        - "valid"
+  - index: 1
+    slug: validate-invalid-manifest
+    intent: >
+      Run `phenotype-journey validate --manifest
+      tests/fixtures/invalid-manifest.json` (missing required `intent` field);
+      expect exit code 1 and a structured error referencing the missing field.
+    screenshot_path: assets/rich-media/phenotype-journeys/schema-invalid-step1.png
+    assertions:
+      expected_exit: 1
+      must_contain:
+        - "intent"
+gates:
+  - Schema negative fixtures in tests/unit/ pass
+  - Drift tests asserting schema round-trips pass
+  - This manifest validates against manifest.schema.json
+status: authored
