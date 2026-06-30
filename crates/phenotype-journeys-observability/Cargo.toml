@@ -4,11 +4,18 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "OTel/OTLP observability for the phenotype-journeys workspace (re-exports pheno-tracing)"
+description = "OTel/OTLP observability for the phenotype-journeys workspace"
 
 [dependencies]
-# pheno-tracing is the fleet-canonical OTLP tracer (ADR-012)
-pheno-tracing = { git = "https://github.com/KooshaPari/pheno-tracing", tag = "v0.4.0" }
+# Standard tracing facade + OTLP exporter (no external git dep required)
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+opentelemetry = { version = "0.27", features = ["trace"] }
+opentelemetry_sdk = { version = "0.27", features = ["rt-tokio", "trace"] }
+opentelemetry-otlp = { version = "0.27", features = ["http-proto", "reqwest-client"] }
+opentelemetry-semantic-conventions = "0.27"
+tracing-opentelemetry = "0.28"
+thiserror.workspace = true
 
 [lib]
 path = "src/lib.rs"

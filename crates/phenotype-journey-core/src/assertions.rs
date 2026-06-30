@@ -150,10 +150,12 @@ pub fn run_on_manifest(
     // accept any of the canonical sentinel, a single-underscore variant, or
     // the bare `EXIT N` form. The shell still emits the canonical string; we
     // only loosen the *recogniser*, not the producer.
-    let last_exit: Option<(u32, i32)> = manifest
-        .steps
-        .iter()
-        .find_map(|s| s.assertions.as_ref().and_then(|a| a.expected_exit).map(|e| (s.index, e)));
+    let last_exit: Option<(u32, i32)> = manifest.steps.iter().find_map(|s| {
+        s.assertions
+            .as_ref()
+            .and_then(|a| a.expected_exit)
+            .map(|e| (s.index, e))
+    });
     if let Some((step_index, expected)) = last_exit {
         if let Some(last) = manifest.steps.last() {
             let frame_path = keyframe_path(artefacts_root, &manifest.id, last);
@@ -198,7 +200,10 @@ fn keyframe_path(artefacts_root: &Path, journey_id: &str, step: &Step) -> PathBu
 }
 
 fn snippet(text: &str, max: usize) -> String {
-    let collapsed: String = text.chars().map(|c| if c == '\n' { ' ' } else { c }).collect();
+    let collapsed: String = text
+        .chars()
+        .map(|c| if c == '\n' { ' ' } else { c })
+        .collect();
     if collapsed.chars().count() <= max {
         collapsed
     } else {
@@ -314,7 +319,9 @@ fn run_override(cmd: &str, frame_path: &Path) -> Result<String, JourneyError> {
 }
 
 fn shell_escape(s: &str) -> String {
-    if s.chars().all(|c| c.is_ascii_alphanumeric() || "/._-+:=".contains(c)) {
+    if s.chars()
+        .all(|c| c.is_ascii_alphanumeric() || "/._-+:=".contains(c))
+    {
         s.to_string()
     } else {
         format!("'{}'", s.replace('\'', "'\\''"))
@@ -325,6 +332,7 @@ fn shell_escape(s: &str) -> String {
 mod tests {
     use super::*;
     use crate::{Step, StepAssertions};
+    use serial_test::serial;
     use std::io::Write;
 
     fn write_fixture(dir: &Path, journey: &str, file: &str, content: &str) -> PathBuf {
@@ -365,6 +373,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn must_contain_violation() {
         let tmp = tempdir_abs();
         write_fixture(&tmp, "j", "frame-001.png", "hello world");
@@ -389,6 +398,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn must_not_contain_violation() {
         let tmp = tempdir_abs();
         write_fixture(&tmp, "j", "frame-001.png", "error: unexpected argument");
@@ -411,6 +421,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn exit_code_violation() {
         let tmp = tempdir_abs();
         // Last frame lacks the sentinel.
@@ -439,6 +450,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn exit_code_passes_when_sentinel_present() {
         let tmp = tempdir_abs();
         write_fixture(&tmp, "j", "frame-001.png", "final line __EXIT_0__ ok");
@@ -460,6 +472,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn must_contain_regex_matches() {
         let tmp = tempdir_abs();
         // Simulates OCR-mangled `__EXIT_1__` as `-EXIT_1__`.
@@ -482,6 +495,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn must_contain_regex_violation_and_invalid() {
         let tmp = tempdir_abs();
         write_fixture(&tmp, "j", "frame-001.png", "plain text with no digits");
@@ -493,7 +507,7 @@ mod tests {
                 "frame-001.png",
                 StepAssertions {
                     must_contain_regex: vec![
-                        r"EXIT[_ ]?\d".into(), // non-matching
+                        r"EXIT[_ ]?\d".into(),  // non-matching
                         "(unterminated".into(), // invalid regex
                     ],
                     ..Default::default()

@@ -52,8 +52,7 @@ pub fn ocr_vision(frame_path: &Path) -> Result<String, JourneyError> {
         let url: Retained<NSURL> = NSURL::fileURLWithPath(&ns_path);
 
         // Empty options dictionary — typed as NSDictionary<VNImageOption, AnyObject>.
-        let empty_options: Retained<NSDictionary<VNImageOption, AnyObject>> =
-            NSDictionary::new();
+        let empty_options: Retained<NSDictionary<VNImageOption, AnyObject>> = NSDictionary::new();
 
         let handler: Retained<VNImageRequestHandler> = VNImageRequestHandler::initWithURL_options(
             VNImageRequestHandler::alloc(),
@@ -71,8 +70,7 @@ pub fn ocr_vision(frame_path: &Path) -> Result<String, JourneyError> {
         // concrete VNRecognizeTextRequest via the retained-slice constructor
         // after re-typing through a transparent Retained cast.
         let as_base: Retained<VNRequest> = Retained::cast_unchecked(request.clone());
-        let req_array: Retained<NSArray<VNRequest>> =
-            NSArray::from_retained_slice(&[as_base]);
+        let req_array: Retained<NSArray<VNRequest>> = NSArray::from_retained_slice(&[as_base]);
 
         handler
             .performRequests_error(&req_array)

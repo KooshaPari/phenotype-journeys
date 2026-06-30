@@ -1,0 +1,62 @@
+# Journey: phenotype-journey CLI record/verify/assert/sync commands
+# FR: FR-PHENOTYPE_JOURNEYS-001
+# NFR: NFR-PHENOTYPE_JOURNEYS-USABILITY-001
+id: phenotype-journey-cli-commands
+intent: >
+  The phenotype-journey CLI records a terminal session, verifies the manifest
+  against the canonical schema, asserts exit-code evidence, and syncs the
+  result bundle — completing each subcommand without error and writing a valid
+  manifest to disk.
+fr_ids:
+  - FR-PHENOTYPE_JOURNEYS-001
+nfr_ids:
+  - NFR-PHENOTYPE_JOURNEYS-USABILITY-001
+steps:
+  - index: 0
+    slug: record-fixture-session
+    intent: >
+      Run `phenotype-journey record --output /tmp/journey-test` against a
+      fixture script that prints three lines and exits 0; expect a manifest
+      JSON file at the output path.
+    screenshot_path: assets/rich-media/phenotype-journeys/cli-record-step0.png
+    assertions:
+      expected_exit: 0
+      must_contain:
+        - '"id":'
+        - '"steps":'
+  - index: 1
+    slug: verify-manifest
+    intent: >
+      Run `phenotype-journey verify --manifest /tmp/journey-test/manifest.json`
+      (mock mode); expect overall_score ≥ 0.90 in the output and exit code 0.
+    screenshot_path: assets/rich-media/phenotype-journeys/cli-verify-step1.png
+    assertions:
+      expected_exit: 0
+      must_contain:
+        - "overall_score"
+  - index: 2
+    slug: assert-exit-code
+    intent: >
+      Run `phenotype-journey assert --manifest /tmp/journey-test/manifest.json`;
+      with no assertion rules the command exits 0 and prints no violations.
+    screenshot_path: assets/rich-media/phenotype-journeys/cli-assert-step2.png
+    assertions:
+      expected_exit: 0
+      must_not_contain:
+        - "VIOLATION"
+  - index: 3
+    slug: sync-bundle
+    intent: >
+      Run `phenotype-journey sync --manifest /tmp/journey-test/manifest.json
+      --dest /tmp/journey-sync-out`; expect the manifest file to be copied and
+      exit code 0.
+    screenshot_path: assets/rich-media/phenotype-journeys/cli-sync-step3.png
+    assertions:
+      expected_exit: 0
+      must_contain:
+        - "manifest.json"
+gates:
+  - CLI fixture tests for record/verify/assert/sync subcommands pass
+  - Schema validation of this manifest passes (`phenotype-journey validate`)
+  - All assertion `expected_exit` values are 0 in CI
+status: authored
