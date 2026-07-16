@@ -1,0 +1,552 @@
+<template>
+  <div class="keyframe-gallery">
+    <div v-if="keyframes.length" class="keyframe-grid">
+      <div
+        v-for="(kf, i) in keyframes"
+        :key="i"
+        class="keyframe-card"
+      >
+        <button
+          ref="thumbEls"
+          class="keyframe-thumb-btn"
+          :aria-label="`Open frame ${i + 1}: ${kf.caption}`"
+          @click="openAt(i)"
+        >
+          <div class="keyframe-thumb-wrap">
+            <img
+              :src="thumbSrc(kf, i)"
+              :alt="kf.caption"
+              class="keyframe-thumb"
+              @load="onThumbLoad($event, i)"
+              @error="onThumbError(i)"
+            />
+            <svg
+              v-if="(kf.annotations?.length ?? 0) > 0 && natDims[i] && !(annotationsBakedOn && !thumbBakedMissing[i])"
+              class="keyframe-thumb-annot"
+              :viewBox="`0 0 ${natDims[i].w} ${natDims[i].h}`"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <rect
+                v-for="(a, j) in kf.annotations"
+                :key="j"
+                :x="a.bbox[0]"
+                :y="a.bbox[1]"
+                :width="a.bbox[2]"
+                :height="a.bbox[3]"
+                :stroke="a.color || paletteColor(j)"
+                :stroke-dasharray="a.style === 'dashed' ? '6 4' : undefined"
+                stroke-width="2"
+                fill="none"
+                opacity="0.4"
+                rx="2"
+              />
+            </svg>
+            <span class="keyframe-expand-pill" aria-hidden="true">Γñó Click to expand</span>
+          </div>
+        </button>
+        <div
+          class="keyframe-card-caption"
+          :class="{ 'is-expanded': expanded[i] }"
+          tabindex="0"
+          :aria-label="`Caption for frame ${i + 1}. Use arrow keys to scroll.`"
+        >
+          <div class="keyframe-caption-body">
+            <div class="keyframe-caption-row">
+              <span class="keyframe-num">{{ i + 1 }}.</span>
+              <span
+                class="keyframe-label keyframe-label-intent"
+                title="Author: human ΓÇö what the step is meant to demonstrate (from intents.yaml)"
+              >
+                <span class="keyframe-label-glyph" aria-hidden="true">Γ£ì∩╕Ä</span>
+                Intent
+              </span>
+              <span class="keyframe-text">{{ kf.caption || 'ΓÇö' }}</span>
+              <button
+                v-if="kf.agreement"
+                type="button"
+                class="keyframe-agreement-chip"
+                :class="['keyframe-agreement-' + kf.agreement.status]"
+                :aria-expanded="!!agreementOpen[i]"
+                :title="agreementTooltip(kf.agreement)"
+                @click.stop="toggleAgreement(i)"
+              >
+                <span aria-hidden="true">{{ agreementGlyph(kf.agreement.status) }}</span>
+                <span>{{ agreementPct(kf.agreement) }} overlap</span>
+              </button>
+              <span v-if="(kf.annotations?.length ?? 0) > 0" class="keyframe-badge">
+                {{ kf.annotations!.length }} annot
+              </span>
+            </div>
+            <div class="keyframe-caption-row keyframe-caption-row-blind">
+              <span class="keyframe-num keyframe-num-blank" aria-hidden="true">&nbsp;</span>
+              <span
+                class="keyframe-label keyframe-label-blind"
+                title="Author: VLM blind evaluator ΓÇö what the judge independently saw in the frame (no caption context)"
+              >
+                <span class="keyframe-label-glyph" aria-hidden="true">Γùë</span>
+                Blind
+              </span>
+              <span class="keyframe-text keyframe-text-blind">{{ kf.blind_description || 'ΓÇö' }}</span>
+            </div>
+            <div
+              v-if="kf.agreement && agreementOpen[i]"
+              class="keyframe-agreement-panel"
+              :class="['keyframe-agreement-panel-' + kf.agreement.status]"
+              role="region"
+              aria-label="Intent / blind agreement diff"
+            >
+              <div class="keyframe-agreement-remedy">
+                Remediation: re-record this step OR rewrite intent.yaml for frame {{ i + 1 }}
+              </div>
+              <div class="keyframe-agreement-col">
+                <div class="keyframe-agreement-title">Missing in Blind</div>
+                <div v-if="kf.agreement.missing_in_blind.length" class="keyframe-agreement-tokens">
+                  <span
+                    v-for="t in kf.agreement.missing_in_blind"
+                    :key="'m-' + t"
+                    class="keyframe-agreement-token keyframe-agreement-token-missing"
+                  >{{ t }}</span>
+                </div>
+                <div v-else class="keyframe-agreement-empty">ΓÇö none ΓÇö</div>
+              </div>
+              <div class="keyframe-agreement-col">
+                <div class="keyframe-agreement-title">Extras in Blind</div>
+                <div v-if="kf.agreement.extras_in_blind.length" class="keyframe-agreement-tokens">
+                  <span
+                    v-for="t in kf.agreement.extras_in_blind"
+                    :key="'e-' + t"
+                    class="keyframe-agreement-token keyframe-agreement-token-extra"
+                  >{{ t }}</span>
+                </div>
+                <div v-else class="keyframe-agreement-empty">ΓÇö none ΓÇö</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button
+          v-if="isOverflowing(i, kf.caption)"
+          type="button"
+          class="keyframe-toggle"
+          :aria-expanded="!!expanded[i]"
+          @click="toggleExpanded(i)"
+        >
+          {{ expanded[i] ? 'Show less Γû┤' : 'Show more Γû╛' }}
+        </button>
+      </div>
+    </div>
+    <div v-else class="keyframe-empty">No keyframes.</div>
+
+    <KeyframeLightbox
+      :open="lightboxOpen"
+      :frames="keyframes"
+      :index="lightboxIndex"
+      :journey-id="journeyId"
+      @update:index="lightboxIndex = $event"
+      @close="closeLightbox"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, nextTick } from 'vue'
+import KeyframeLightbox from './KeyframeLightbox.vue'
+
+interface Annotation {
+  bbox: [number, number, number, number]
+  label: string
+  color?: string | null
+  style?: 'solid' | 'dashed'
+  note?: string | null
+  kind?: 'region' | 'pointer' | 'highlight'
+}
+
+interface Agreement {
+  status: 'green' | 'yellow' | 'red'
+  overlap: number
+  /** Backend-native raw score (cosine / Jaccard / SigLIP logit). */
+  raw_score?: number
+  /** Backend id: 'jaccard' | 'sentence-transformer' | 'siglip' (+ jaccard-fallback:*). */
+  backend?: string
+  backend_model?: string | null
+  intent_tokens?: string[]
+  blind_tokens?: string[]
+  missing_in_blind: string[]
+  extras_in_blind: string[]
+}
+
+interface Keyframe {
+  path: string
+  caption: string
+  blind_description?: string | null
+  annotations?: Annotation[] | null
+  agreement?: Agreement | null
+}
+
+const props = withDefaults(
+  defineProps<{
+    keyframes: Keyframe[]
+    title?: string
+    journeyId?: string
+  }>(),
+  { keyframes: () => [], journeyId: '' },
+)
+
+const PALETTE = ['#f38ba8','#a6e3a1','#f9e2af','#89b4fa','#cba6f7','#94e2d5','#fab387']
+function paletteColor(i: number) { return PALETTE[i % PALETTE.length] }
+
+const agreementOpen = ref<Record<number, boolean>>({})
+function toggleAgreement(i: number) {
+  agreementOpen.value = { ...agreementOpen.value, [i]: !agreementOpen.value[i] }
+}
+function agreementGlyph(s: 'green'|'yellow'|'red'): string {
+  return s === 'green' ? '≡ƒƒó' : s === 'yellow' ? '≡ƒƒí' : '≡ƒö┤'
+}
+function agreementPct(a: Agreement): string {
+  return `${Math.round((a.overlap || 0) * 100)}%`
+}
+function backendLabel(b?: string): string {
+  if (!b) return 'Jaccard'
+  if (b.startsWith('jaccard-fallback')) return 'Jaccard (fallback)'
+  if (b === 'siglip') return 'SigLIP'
+  if (b === 'sentence-transformer') return 'Sentence'
+  if (b === 'jaccard') return 'Jaccard'
+  return b
+}
+function agreementTooltip(a: Agreement): string {
+  const label = backendLabel(a.backend)
+  const raw = (a.raw_score ?? a.overlap ?? 0).toFixed(2)
+  return `Agreement: ${a.status.toUpperCase()} ΓÇö ${label} ${raw} (${agreementPct(a)}). Click for diff.`
+}
+
+const natDims = ref<Record<number, { w: number; h: number }>>({})
+function onThumbLoad(ev: Event, i: number) {
+  const img = ev.target as HTMLImageElement
+  natDims.value[i] = { w: img.naturalWidth, h: img.naturalHeight }
+}
+
+// Annotations-baked toggle ΓÇö shared with the lightbox via localStorage.
+const BAKED_KEY = 'phenotype-journey:annotations-baked-on'
+const annotationsBakedOn = ref(true)
+try {
+  const stored = localStorage.getItem(BAKED_KEY)
+  if (stored === '0') annotationsBakedOn.value = false
+} catch {}
+const thumbBakedMissing = ref<Record<number, boolean>>({})
+function bakedPathFor(p: string): string {
+  return p.replace(/\.(png|jpe?g|webp)(\?|#|$)/i, '.annotated.$1$2')
+}
+function thumbSrc(kf: Keyframe, i: number): string {
+  if (annotationsBakedOn.value && (kf.annotations?.length ?? 0) > 0 && !thumbBakedMissing.value[i]) {
+    return bakedPathFor(kf.path)
+  }
+  return kf.path
+}
+function onThumbError(i: number) {
+  if (annotationsBakedOn.value) {
+    thumbBakedMissing.value = { ...thumbBakedMissing.value, [i]: true }
+  }
+}
+
+const lightboxOpen = ref(false)
+const lightboxIndex = ref(0)
+const lastTrigger = ref<HTMLElement | null>(null)
+const thumbEls = ref<HTMLElement[]>([])
+const expanded = ref<Record<number, boolean>>({})
+
+// Heuristic: consider caption overflowing (i.e. would be clamped) when it is
+// longer than ~140 chars, or contains more than 2 "labels" (Intent: / Blind:),
+// or has an explicit newline. This avoids having to measure DOM boxes.
+function isOverflowing(_i: number, caption: string): boolean {
+  if (!caption) return false
+  if (caption.length > 140) return true
+  if (caption.includes('\n')) return true
+  const labelMatches = caption.match(/\b(Intent|Blind|Observation|Expected|Actual):/g)
+  return !!labelMatches && labelMatches.length >= 2
+}
+
+function toggleExpanded(i: number) {
+  expanded.value = { ...expanded.value, [i]: !expanded.value[i] }
+}
+
+function openAt(i: number) {
+  lastTrigger.value = thumbEls.value[i] ?? null
+  lightboxIndex.value = i
+  lightboxOpen.value = true
+}
+async function closeLightbox() {
+  lightboxOpen.value = false
+  await nextTick()
+  lastTrigger.value?.focus()
+}
+</script>
+
+<style scoped>
+.keyframe-gallery { margin: 20px 0; }
+.keyframe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+.keyframe-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--vp-divider);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--vp-c-bg-soft);
+  transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+}
+.keyframe-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-accent, #89b4fa);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+.keyframe-thumb-btn {
+  all: unset;
+  display: block;
+  cursor: zoom-in;
+  width: 100%;
+}
+.keyframe-thumb-btn:focus-visible {
+  outline: 2px solid var(--color-accent, #89b4fa);
+  outline-offset: -2px;
+}
+.keyframe-thumb-wrap {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: var(--vp-c-bg-mute);
+  overflow: hidden;
+  cursor: zoom-in;
+}
+.keyframe-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  transition: filter 120ms ease;
+}
+.keyframe-thumb-btn:hover .keyframe-thumb,
+.keyframe-thumb-btn:focus-visible .keyframe-thumb {
+  filter: brightness(0.55);
+}
+.keyframe-expand-pill {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.96);
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(17, 17, 27, 0.88);
+  color: #cdd6f4;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+.keyframe-thumb-btn:hover .keyframe-expand-pill,
+.keyframe-thumb-btn:focus-visible .keyframe-expand-pill {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+.keyframe-thumb-annot {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.keyframe-card-caption {
+  /* Collapsed: clamp to 3 lines. Expanded: max-height w/ scroll. */
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--vp-c-text-2);
+  border-top: 1px solid var(--vp-divider);
+  max-height: 4.5rem; /* ~3 lines at 13px * 1.5 line-height */
+  overflow: hidden;
+  transition: max-height 150ms ease;
+}
+.keyframe-card-caption:focus-visible {
+  outline: 2px solid var(--color-accent, #89b4fa);
+  outline-offset: -2px;
+}
+.keyframe-card-caption .keyframe-caption-body {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.5;
+}
+.keyframe-card-caption.is-expanded {
+  max-height: 16rem;
+  overflow-y: auto;
+}
+.keyframe-card-caption.is-expanded .keyframe-caption-body {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+.keyframe-caption-body { display: block; word-break: break-word; }
+.keyframe-caption-row {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  min-width: 0;
+}
+.keyframe-caption-row + .keyframe-caption-row { margin-top: 4px; }
+.keyframe-caption-row-blind { opacity: 0.9; }
+.keyframe-num { font-weight: 600; color: var(--vp-c-text-1); margin-right: 4px; flex-shrink: 0; }
+.keyframe-num-blank { visibility: hidden; }
+.keyframe-label {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  cursor: help;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.keyframe-label-glyph {
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0.85;
+}
+.keyframe-label-intent {
+  color: var(--color-accent, #89b4fa);
+  background: rgba(137, 180, 250, 0.12);
+}
+.keyframe-label-blind {
+  color: var(--vp-c-text-3);
+  background: rgba(205, 214, 244, 0.06);
+  border: 1px dashed rgba(205, 214, 244, 0.2);
+}
+.keyframe-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.keyframe-card-caption.is-expanded .keyframe-text { white-space: normal; }
+.keyframe-text-blind { color: var(--vp-c-text-3); font-style: italic; }
+.keyframe-toggle {
+  all: unset;
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--vp-c-text-2);
+  background: var(--vp-c-bg-mute);
+  border-top: 1px solid var(--vp-divider);
+  text-align: center;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.keyframe-toggle:hover { background: var(--vp-c-bg-elv); color: var(--vp-c-text-1); }
+.keyframe-toggle:focus-visible {
+  outline: 2px solid var(--color-accent, #89b4fa);
+  outline-offset: -2px;
+}
+.keyframe-badge {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  color: #a6e3a1;
+  background: rgba(166,227,161,0.12);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.keyframe-agreement-chip {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  cursor: pointer;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  transition: background 120ms ease, transform 120ms ease;
+}
+.keyframe-agreement-chip:hover { transform: translateY(-1px); }
+.keyframe-agreement-chip:focus-visible {
+  outline: 2px solid var(--color-accent, #89b4fa);
+  outline-offset: 2px;
+}
+.keyframe-agreement-green {
+  color: #a6e3a1; background: rgba(166,227,161,0.12); border-color: rgba(166,227,161,0.30);
+}
+.keyframe-agreement-yellow {
+  color: #e5b85a; background: rgba(249,226,175,0.14); border-color: rgba(249,226,175,0.34);
+}
+.keyframe-agreement-red {
+  color: #e65c78; background: rgba(243,139,168,0.14); border-color: rgba(243,139,168,0.40);
+}
+.keyframe-agreement-panel {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--vp-c-bg-mute);
+  border: 1px solid var(--vp-divider);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+.keyframe-agreement-panel-red   { border-color: rgba(243,139,168,0.50); }
+.keyframe-agreement-panel-yellow{ border-color: rgba(249,226,175,0.44); }
+.keyframe-agreement-panel-green { border-color: rgba(166,227,161,0.40); }
+.keyframe-agreement-remedy {
+  grid-column: 1 / -1;
+  font-size: 10px;
+  color: var(--vp-c-text-3);
+  font-style: italic;
+}
+.keyframe-agreement-col { display: flex; flex-direction: column; gap: 4px; }
+.keyframe-agreement-title {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vp-c-text-2);
+}
+.keyframe-agreement-tokens { display: flex; flex-wrap: wrap; gap: 4px; }
+.keyframe-agreement-token { padding: 1px 5px; border-radius: 4px; font-size: 10px; }
+.keyframe-agreement-token-missing {
+  color: #e65c78;
+  background: rgba(243,139,168,0.10);
+  border: 1px dashed rgba(243,139,168,0.45);
+}
+.keyframe-agreement-token-extra {
+  color: #5e83c7;
+  background: rgba(137,180,250,0.10);
+  border: 1px dashed rgba(137,180,250,0.45);
+}
+.keyframe-agreement-empty {
+  color: var(--vp-c-text-3); font-style: italic; font-size: 10px;
+}
+@media (max-width: 520px) {
+  .keyframe-agreement-panel { grid-template-columns: 1fr; }
+}
+.keyframe-empty {
+  padding: 20px;
+  text-align: center;
+  color: var(--vp-c-text-3);
+  border: 1px dashed var(--vp-divider);
+  border-radius: 8px;
+}
+</style>

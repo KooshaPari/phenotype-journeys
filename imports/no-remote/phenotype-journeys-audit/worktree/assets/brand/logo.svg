@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" width="512" height="512" aria-label="phenotype-journeys logo">
+  <title>phenotype-journeys logo</title>
+  <defs>
+    <linearGradient id="journey-tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#090a0c"/>
+      <stop offset="45%" stop-color="#10131c"/>
+      <stop offset="100%" stop-color="#7ebab5"/>
+    </linearGradient>
+    <linearGradient id="journey-stroke" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f2faf9"/>
+      <stop offset="50%" stop-color="#b5e3de"/>
+      <stop offset="100%" stop-color="#7ebab5"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="16" y="16" width="480" height="480" rx="118" fill="url(#journey-tile)"/>
+
+  <path
+    d="M95 125 C188 52 322 52 392 132 S436 286 336 315 S232 342 278 423 C318 486 422 451 436 386"
+    fill="none"
+    stroke="url(#journey-stroke)"
+    stroke-width="30"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+
+  <circle cx="145" cy="162" r="8.5" fill="#f5fcfb"/>
+  <circle cx="219" cy="178" r="8.5" fill="#f5fcfb"/>
+  <circle cx="302" cy="229" r="8.5" fill="#f5fcfb"/>
+  <circle cx="281" cy="316" r="8.5" fill="#f5fcfb"/>
+  <circle cx="333" cy="394" r="8.5" fill="#f5fcfb"/>
+
+  <polyline
+    points="430,374 456,396 436,422"
+    fill="none"
+    stroke="url(#journey-stroke)"
+    stroke-width="30"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+  <polygon points="446,376 468,404 446,410" fill="#f3fcfb"/>
+
+  <rect x="16" y="16" width="480" height="480" rx="118" fill="none" stroke="rgba(245,252,251,0.22)" stroke-width="3"/>
+</svg>
