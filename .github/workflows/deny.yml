@@ -1,0 +1,39 @@
+name: cargo-deny
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+  schedule:
+    - cron: '0 9 * * 1'
+
+
+permissions: {}
+
+
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  cargo-deny:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@88d2d2ab91652a0ab1b91ce3aa4bfcf2c0c325a9 # stable
+
+      - name: Run cargo-deny
+        uses: EmbarkStudios/cargo-deny-action@5bb39ff5d5a0e94dc9e2dc94eced0c6129743a57 # v2
+        with:
+          rust-version: stable
