@@ -10,7 +10,7 @@ description = "OTel/OTLP observability for the phenotype-journeys workspace"
 # Standard tracing facade + OTLP exporter (no external git dep required)
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
-opentelemetry = { version = "0.27", features = ["trace"] }
+opentelemetry = { version = "0.32", features = ["trace"] }
 # Keep in lockstep with opentelemetry / otlp / tracing-opentelemetry 0.27.x.
 # Partial bump to 0.32 (#121) breaks the build (SdkTracerProvider / KeyValue
 # mismatch). Coordinated 0.32 stack is T1 (Dependabot #128/#126/#125/#123).
