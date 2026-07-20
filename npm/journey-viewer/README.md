@@ -4,9 +4,18 @@ Vue 3 components for rendering Phenotype journey manifests inside VitePress docs
 
 ## Install
 
+**Not on public npmjs.com.** Prefer a path or git dependency until GitHub Packages
+publish exists (see [`../PUBLISHING.md`](../PUBLISHING.md)):
+
 ```bash
-bun add @phenotype/journey-viewer
+# path (monorepo / sibling clone)
+bun add ../phenotype-journeys/npm/journey-viewer
+
+# or git
+bun add github:KooshaPari/phenotype-journeys#main&path=npm/journey-viewer
 ```
+
+Do not run `bun add @phenotype/journey-viewer` expecting the public registry.
 
 ## VitePress integration
 

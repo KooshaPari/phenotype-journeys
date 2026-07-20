@@ -1,7 +1,12 @@
 # Publishing `@phenotype/*` npm packages
 
-These packages publish to the **GitHub Packages** npm registry
+These packages are intended to publish to the **GitHub Packages** npm registry
 (`https://npm.pkg.github.com`) — not the public `npmjs.com` registry.
+
+**Current honesty (T0):** packages may not yet exist under
+`@phenotype` on GitHub Packages. Until a successful publish lands, consumers
+must use path or git dependencies (see the root README Install section and
+each package README). Do not assume `bun add @phenotype/...` works.
 
 ## Prerequisites
 

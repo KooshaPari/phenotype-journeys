@@ -12,8 +12,12 @@ ARIA snapshots on each `recorder.capture()` call, and emits a
 
 ## Install
 
+**Not on public npmjs.com.** Prefer path/git until GitHub Packages publish
+exists (see [`../PUBLISHING.md`](../PUBLISHING.md)):
+
 ```bash
-bun add -d @phenotype/playwright-record @playwright/test
+bun add -d ../phenotype-journeys/npm/playwright-record @playwright/test
+# or: bun add -d github:KooshaPari/phenotype-journeys#main&path=npm/playwright-record
 ```
 
 ## Example 1 — Minimal journey
