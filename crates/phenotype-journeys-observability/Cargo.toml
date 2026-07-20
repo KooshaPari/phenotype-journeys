@@ -16,7 +16,7 @@ opentelemetry = { version = "0.27", features = ["trace"] }
 # mismatch). Coordinated 0.32 stack is T1 (Dependabot #128/#126/#125/#123).
 opentelemetry_sdk = { version = "0.27", features = ["rt-tokio", "trace"] }
 opentelemetry-otlp = { version = "0.27", features = ["http-proto", "reqwest-client"] }
-opentelemetry-semantic-conventions = "0.27"
+opentelemetry-semantic-conventions = "0.32"
 tracing-opentelemetry = "0.28"
 thiserror.workspace = true
 
