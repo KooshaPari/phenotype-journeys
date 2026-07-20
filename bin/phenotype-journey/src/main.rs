@@ -230,7 +230,8 @@ impl From<CliSyncKind> for SyncKind {
 fn main() -> Result<()> {
     let otlp_endpoint = std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
         .unwrap_or_else(|_| "http://localhost:4317".to_string());
-    init_tracing("phenotype-journey", &otlp_endpoint)
+    // Retain guard until process exit so SdkTracerProvider::shutdown flushes spans.
+    let _otel_guard = init_tracing("phenotype-journey", &otlp_endpoint)
         .context("failed to initialise OTLP tracing")?;
     info!(
         version = env!("CARGO_PKG_VERSION"),
