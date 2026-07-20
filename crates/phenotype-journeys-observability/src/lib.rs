@@ -10,7 +10,7 @@
 //! use phenotype_journeys_observability::prelude::*;
 //!
 //! fn main() -> Result<(), TracingError> {
-//!     init_tracing("phenotype-journey", "http://localhost:4317")?;
+//!     let _guard = init_tracing("phenotype-journey", "http://localhost:4317")?;
 //!     info!(version = env!("CARGO_PKG_VERSION"), "starting");
 //!     Ok(())
 //! }
@@ -25,14 +25,19 @@ pub enum TracingError {
     Install(String),
 }
 
-/// Opaque handle to the initialised tracing provider. Drop to flush.
+/// Opaque handle to the initialised tracing provider. Drop to flush/shutdown.
+///
+/// Keep this alive for the process lifetime when OTLP is enabled; dropping it
+/// calls [`SdkTracerProvider::shutdown`](opentelemetry_sdk::trace::SdkTracerProvider::shutdown).
 pub struct TracingGuard {
-    _provider: opentelemetry_sdk::trace::TracerProvider,
+    provider: Option<opentelemetry_sdk::trace::SdkTracerProvider>,
 }
 
 impl Drop for TracingGuard {
     fn drop(&mut self) {
-        opentelemetry::global::shutdown_tracer_provider();
+        if let Some(provider) = self.provider.take() {
+            let _ = provider.shutdown();
+        }
     }
 }
 
@@ -42,10 +47,14 @@ impl Drop for TracingGuard {
 ///   subscriber (useful in CI / unit tests with no collector).
 /// - Reads `OTEL_EXPORTER_OTLP_ENDPOINT` env var as override when the caller
 ///   passes a non-empty string; the call-site value takes precedence.
+///
+/// Returns a [`TracingGuard`] that must be retained until process exit so the
+/// SDK can flush spans on drop (required since OTel 0.28 removed
+/// `global::shutdown_tracer_provider`).
 pub fn init(
     service_name: impl Into<String>,
     endpoint: impl Into<String>,
-) -> Result<(), TracingError> {
+) -> Result<TracingGuard, TracingError> {
     let svc = service_name.into();
     let ep = endpoint.into();
 
@@ -57,7 +66,7 @@ pub fn init(
                     .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
             )
             .init();
-        return Ok(());
+        return Ok(TracingGuard { provider: None });
     }
 
     use opentelemetry::trace::TracerProvider as _;
@@ -69,14 +78,16 @@ pub fn init(
         .build()
         .map_err(|e| TracingError::Install(e.to_string()))?;
 
-    let provider = opentelemetry_sdk::trace::TracerProvider::builder()
-        .with_batch_exporter(exporter, opentelemetry_sdk::runtime::Tokio)
-        .with_resource(opentelemetry_sdk::Resource::new(vec![
-            opentelemetry::KeyValue::new(
-                opentelemetry_semantic_conventions::resource::SERVICE_NAME,
-                svc,
-            ),
-        ]))
+    let resource = opentelemetry_sdk::Resource::builder()
+        .with_attribute(opentelemetry::KeyValue::new(
+            opentelemetry_semantic_conventions::resource::SERVICE_NAME,
+            svc,
+        ))
+        .build();
+
+    let provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
+        .with_batch_exporter(exporter)
+        .with_resource(resource)
         .build();
 
     opentelemetry::global::set_tracer_provider(provider.clone());
@@ -95,7 +106,9 @@ pub fn init(
         .with(otel_layer)
         .init();
 
-    Ok(())
+    Ok(TracingGuard {
+        provider: Some(provider),
+    })
 }
 
 // ── Lightweight metric primitives ─────────────────────────────────────────────
@@ -272,6 +285,7 @@ pub mod prelude {
     pub use super::{
         error, info, init_tracing, instrument, span, warn, Counter, Histogram, OtlpEndpoint,
         RequestMetrics, ServiceName, Span, SpanGuard, TracePort, TraceResult, TracingError,
+        TracingGuard,
     };
 }
 
@@ -279,7 +293,7 @@ pub mod prelude {
 pub fn init_tracing(
     service_name: impl Into<String>,
     endpoint: impl Into<String>,
-) -> Result<(), TracingError> {
+) -> Result<TracingGuard, TracingError> {
     init(service_name, endpoint)
 }
 
