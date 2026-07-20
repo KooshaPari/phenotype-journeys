@@ -4,8 +4,12 @@ Playwright helper that scripts a web page interaction and emits a Phenotype-conf
 
 ## Install
 
+**Not on public npmjs.com.** Prefer path/git until GitHub Packages publish
+exists (see [`../PUBLISHING.md`](../PUBLISHING.md)):
+
 ```bash
-bun add -d @phenotype/journey-playwright @playwright/test playwright
+bun add -d ../phenotype-journeys/npm/journey-playwright @playwright/test playwright
+# or: bun add -d github:KooshaPari/phenotype-journeys#main&path=npm/journey-playwright
 ```
 
 ## Use

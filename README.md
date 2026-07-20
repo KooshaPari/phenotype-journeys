@@ -19,6 +19,21 @@
 > human operator. Bug reports and contributions are still welcome, but please
 > expect AI-generated code, comments, and documentation throughout.
 <!-- AI-DD-META:END -->
+
+## Work State
+
+| Field | Value |
+|---|---|
+| Crate version | `0.1.0` in workspace `Cargo.toml` — **no crates.io publish yet** |
+| crates.io | **Not published** — do not use `cargo install phenotype-journey` / `cargo add phenotype-journey-core` |
+| npm | **Not on public npmjs.com**; GitHub Packages publish is documented but packages may be absent — prefer path/git |
+| Install path | from source — see [Install](#install) |
+| Focus | T0 — install/publish honesty + safe Dependabot cargo bumps |
+
+> Honest gap: local `cargo test --locked` is the verification gate. End-user
+> install is path/git only until a tagged release and crates.io (Rust) /
+> registry (npm) publish land (T1).
+
 # phenotype-journeys
 
 [![License](https://img.shields.io/github/license/KooshaPari/phenotype-journeys)](LICENSE)
@@ -28,6 +43,43 @@
 Shared, project-agnostic **journey harness** for the Phenotype org: record a
 user-facing flow (CLI tape, UI test, or Playwright trace), emit a canonical
 manifest, and verify it with a Claude-describe + Claude-judge loop.
+
+## Install
+
+**Rust crates are not on crates.io yet.** Prefer a clone (workspace path deps):
+
+```bash
+git clone https://github.com/KooshaPari/phenotype-journeys
+cd phenotype-journeys
+cargo build --locked
+cargo test --locked
+
+# CLI binary from the workspace
+cargo install --path bin/phenotype-journey --locked
+```
+
+Or install / depend without cloning first:
+
+```bash
+# CLI
+cargo install --git https://github.com/KooshaPari/phenotype-journeys --locked phenotype-journey
+
+# Library (Cargo.toml)
+# phenotype-journey-core = { git = "https://github.com/KooshaPari/phenotype-journeys" }
+```
+
+Requires Rust stable matching `rust-toolchain.toml` (workspace MSRV intent: 1.75+).
+
+**npm packages** (`@phenotype/journey-viewer`, `@phenotype/journey-playwright`,
+`@phenotype/playwright-record`) are intended for GitHub Packages — see
+[`npm/PUBLISHING.md`](npm/PUBLISHING.md). Until a registry publish exists,
+depend via path or git:
+
+```bash
+# from a consumer repo
+bun add github:KooshaPari/phenotype-journeys#main&path=npm/journey-viewer
+# or: "file:../phenotype-journeys/npm/journey-viewer"
+```
 
 ## Why this exists
 
