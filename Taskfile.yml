@@ -39,3 +39,11 @@ tasks:
   docs:
     desc: cargo doc --no-deps --workspace
     cmds: [cargo doc --no-deps --workspace]
+
+  npm:pack:
+    desc: Validate + dry-run pack all npm/* @phenotype packages
+    cmds: [node npm/publish.mjs --dry-run]
+
+  npm:publish:
+    desc: Publish npm/* to GitHub Packages (requires NODE_AUTH_TOKEN with write:packages)
+    cmds: [node npm/publish.mjs --publish]

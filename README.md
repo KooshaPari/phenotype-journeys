@@ -26,9 +26,9 @@
 |---|---|
 | Crate version | `0.1.0` — tagged [`v0.1.0`](https://github.com/KooshaPari/phenotype-journeys/releases/tag/v0.1.0) |
 | crates.io | **Published** — `phenotype-journey-core`, `phenotype-journeys-observability`, `phenotype-journey` |
-| npm | **Not on public npmjs.com**; GitHub Packages publish is documented but packages may be absent — prefer path/git |
+| npm | **Not on npmjs.com**; GitHub Packages (`npm.pkg.github.com`) — publish ready, packages may still be absent — prefer path/git until then |
 | Install path | crates.io preferred for Rust — see [Install](#install) |
-| Focus | Post-0.1.0 hardening; npm registry publish still open |
+| Focus | Post-0.1.0 hardening; first `@phenotype/*` GitHub Packages publish still operator-gated |
 
 > First Rust release complete: git tag `v0.1.0`, GitHub Release, and crates.io
 > publish. Next cut: [cutting-a-release](docs/guides/cutting-a-release.md).
@@ -78,9 +78,11 @@ cargo install --git https://github.com/KooshaPari/phenotype-journeys --locked ph
 Requires Rust stable matching `rust-toolchain.toml` (workspace MSRV intent: 1.75+).
 
 **npm packages** (`@phenotype/journey-viewer`, `@phenotype/journey-playwright`,
-`@phenotype/playwright-record`) are intended for GitHub Packages — see
-[`npm/PUBLISHING.md`](npm/PUBLISHING.md). Until a registry publish exists,
-depend via path or git:
+`@phenotype/playwright-record` at `0.1.0`) are **not** on public npmjs.com.
+They target GitHub Packages only — see [`npm/PUBLISHING.md`](npm/PUBLISHING.md)
+for `npm publish` / `node npm/publish.mjs` commands. Until a successful
+GitHub Packages publish exists, depend via path or git (scoped
+`bun add @phenotype/...` will not resolve on the public registry):
 
 ```bash
 # from a consumer repo

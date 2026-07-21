@@ -89,7 +89,10 @@ After a successful publish:
 
 1. Prefer `cargo install phenotype-journey --locked` / `cargo add phenotype-journey-core` in README Install.
 2. Update Work State: crates.io = published; keep git tag / Release as done.
-3. npm packages remain on the separate GitHub Packages path (`npm/PUBLISHING.md`).
+3. npm packages remain on the separate GitHub Packages path
+   (`npm/PUBLISHING.md`): `node npm/publish.mjs` then
+   `NODE_AUTH_TOKEN=… node npm/publish.mjs --publish` (or the
+   `Publish npm (GitHub Packages)` workflow with `dry_run=false`).
 
 ## Rollback / mistakes
 
