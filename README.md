@@ -28,11 +28,11 @@
 | crates.io | **Not published** — do not use `cargo install phenotype-journey` / `cargo add phenotype-journey-core` |
 | npm | **Not on public npmjs.com**; GitHub Packages publish is documented but packages may be absent — prefer path/git |
 | Install path | from source — see [Install](#install) |
-| Focus | T0 — install/publish honesty + safe Dependabot cargo bumps |
+| Focus | T0 honesty (path/git) → T1 tag `v0.1.0` → T2 crates.io (see [cutting-a-release](docs/guides/cutting-a-release.md)) |
 
 > Honest gap: local `cargo test --locked` is the verification gate. End-user
-> install is path/git only until a tagged release and crates.io (Rust) /
-> registry (npm) publish land (T1).
+> install is path/git only until a tagged release **and** crates.io publish
+> land ([cutting-a-release](docs/guides/cutting-a-release.md)).
 
 # phenotype-journeys
 

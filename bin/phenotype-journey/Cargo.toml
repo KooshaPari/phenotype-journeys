@@ -4,7 +4,13 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+authors.workspace = true
+homepage = "https://github.com/KooshaPari/phenotype-journeys"
+readme = "../../README.md"
 description = "CLI for recording, validating, verifying and syncing Phenotype journey manifests"
+keywords = ["journey", "manifest", "verification", "phenotype", "cli"]
+categories = ["command-line-utilities", "development-tools"]
+# Publish last (after core + observability) — see docs/guides/cutting-a-release.md.
 
 [[bin]]
 name = "phenotype-journey"
@@ -15,8 +21,9 @@ default = []
 vision = ["phenotype-journey-core/vision"]
 
 [dependencies]
-phenotype-journey-core = { path = "../../crates/phenotype-journey-core" }
-phenotype-journeys-observability = { path = "../../crates/phenotype-journeys-observability" }
+# version+path: local builds use path; crates.io publish resolves version.
+phenotype-journey-core = { version = "0.1.0", path = "../../crates/phenotype-journey-core" }
+phenotype-journeys-observability = { version = "0.1.0", path = "../../crates/phenotype-journeys-observability" }
 tracing = "0.1"
 clap = { workspace = true }
 serde_json = { workspace = true }

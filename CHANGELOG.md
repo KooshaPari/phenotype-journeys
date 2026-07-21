@@ -16,6 +16,34 @@ All notable changes to this project will be documented in this file.
 
 ### Security
 
+## [0.1.0] - 2026-07-20
+
+First crates.io-ready workspace release for the Rust journey harness.
+
+### Added
+
+- Release operator runbook: [`docs/guides/cutting-a-release.md`](docs/guides/cutting-a-release.md)
+  (tag `v0.1.0` + ordered `cargo publish` for core → observability → CLI).
+- Publish-ready package metadata on `phenotype-journey-core`,
+  `phenotype-journeys-observability`, and `phenotype-journey` (authors,
+  homepage, keywords, categories, readme).
+- Version+path dependency wiring so the CLI can publish after its library
+  crates are on crates.io.
+
+### Changed
+
+- `klipdot-capture` remains `publish = false` for this cut (local KlipDot
+  daemon; not part of the journey harness crates.io surface).
+
+### Notes
+
+- T0 honesty still applies until T2 publish completes: prefer path/git
+  install (`cargo install --path bin/phenotype-journey` /
+  `cargo install --git …`). Do not advertise crates.io install until
+  `cargo publish` for the three crates above succeeds.
+- npm packages (`@phenotype/journey-viewer`, etc.) stay on the GitHub
+  Packages path — see `npm/PUBLISHING.md`.
+
 ## 🐛 Bug Fixes
 - Fix(journey-viewer): pin lightbox toolbar so caption expansion never clips controls
 
