@@ -24,15 +24,14 @@
 
 | Field | Value |
 |---|---|
-| Crate version | `0.1.0` in workspace `Cargo.toml` — **no crates.io publish yet** |
-| crates.io | **Not published** — do not use `cargo install phenotype-journey` / `cargo add phenotype-journey-core` |
+| Crate version | `0.1.0` — tagged [`v0.1.0`](https://github.com/KooshaPari/phenotype-journeys/releases/tag/v0.1.0) |
+| crates.io | **Published** — `phenotype-journey-core`, `phenotype-journeys-observability`, `phenotype-journey` |
 | npm | **Not on public npmjs.com**; GitHub Packages publish is documented but packages may be absent — prefer path/git |
-| Install path | from source — see [Install](#install) |
-| Focus | T0 honesty (path/git) → T1 tag `v0.1.0` → T2 crates.io (see [cutting-a-release](docs/guides/cutting-a-release.md)) |
+| Install path | crates.io preferred for Rust — see [Install](#install) |
+| Focus | Post-0.1.0 hardening; npm registry publish still open |
 
-> Honest gap: local `cargo test --locked` is the verification gate. End-user
-> install is path/git only until a tagged release **and** crates.io publish
-> land ([cutting-a-release](docs/guides/cutting-a-release.md)).
+> First Rust release complete: git tag `v0.1.0`, GitHub Release, and crates.io
+> publish. Next cut: [cutting-a-release](docs/guides/cutting-a-release.md).
 
 # phenotype-journeys
 
@@ -46,26 +45,34 @@ manifest, and verify it with a Claude-describe + Claude-judge loop.
 
 ## Install
 
-**Rust crates are not on crates.io yet.** Prefer a clone (workspace path deps):
+Preferred (crates.io):
+
+```bash
+cargo install phenotype-journey --locked
+```
+
+Library consumers:
+
+```toml
+phenotype-journey-core = "0.1"
+# optional:
+# phenotype-journeys-observability = "0.1"
+```
+
+From a clone (dev / unreleased `main`):
 
 ```bash
 git clone https://github.com/KooshaPari/phenotype-journeys
 cd phenotype-journeys
 cargo build --locked
 cargo test --locked
-
-# CLI binary from the workspace
 cargo install --path bin/phenotype-journey --locked
 ```
 
-Or install / depend without cloning first:
+Or from Git without cloning first:
 
 ```bash
-# CLI
 cargo install --git https://github.com/KooshaPari/phenotype-journeys --locked phenotype-journey
-
-# Library (Cargo.toml)
-# phenotype-journey-core = { git = "https://github.com/KooshaPari/phenotype-journeys" }
 ```
 
 Requires Rust stable matching `rust-toolchain.toml` (workspace MSRV intent: 1.75+).
