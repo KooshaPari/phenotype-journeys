@@ -6,6 +6,9 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 description = "KlipDot daemon: terminal image interceptor and clipboard processor"
+# Not part of the journey harness crates.io surface for 0.1.0.
+# Local/path install only until a dedicated KlipDot publish cut.
+publish = false
 
 [dependencies]
 tokio = { version = "1.52", features = ["full", "process"] }

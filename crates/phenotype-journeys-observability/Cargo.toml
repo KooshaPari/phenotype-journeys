@@ -4,7 +4,13 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+authors.workspace = true
+homepage = "https://github.com/KooshaPari/phenotype-journeys"
+readme = "../../README.md"
 description = "OTel/OTLP observability for the phenotype-journeys workspace"
+keywords = ["opentelemetry", "otlp", "tracing", "phenotype", "observability"]
+categories = ["development-tools", "development-tools::debugging"]
+# Publish after phenotype-journey-core — see docs/guides/cutting-a-release.md.
 
 [dependencies]
 # Standard tracing facade + OTLP exporter (no external git dep required)

@@ -4,7 +4,13 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+authors.workspace = true
+homepage = "https://github.com/KooshaPari/phenotype-journeys"
+readme = "../../README.md"
 description = "Shared types and verification logic for Phenotype journey manifests"
+keywords = ["journey", "manifest", "verification", "phenotype", "cli"]
+categories = ["development-tools", "command-line-utilities"]
+# First crates.io publish is T2 after tag v0.1.0 — see docs/guides/cutting-a-release.md.
 
 [dependencies]
 serde = { workspace = true }
