@@ -1,0 +1,45 @@
+name: Publish npm (GitHub Packages)
+
+# Manual operator path for @phenotype/* packages under npm/.
+# Default dry_run=true — no registry write until explicitly disabled.
+# See npm/PUBLISHING.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "If true, validate + npm pack --dry-run only (no publish)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-npm-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: npm packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: https://npm.pkg.github.com
+          scope: "@phenotype"
+
+      - name: Validate + dry-run pack
+        run: node npm/publish.mjs --dry-run
+
+      - name: Publish to GitHub Packages
+        if: ${{ inputs.dry_run == false }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node npm/publish.mjs --publish

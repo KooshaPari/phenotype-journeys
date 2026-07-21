@@ -27,7 +27,9 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "pack:check": "npm pack --dry-run",
+    "publish:gh": "npm publish --access restricted"
   },
   "repository": {
     "type": "git",
@@ -35,7 +37,8 @@
     "directory": "npm/playwright-record"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
   },
   "files": ["src", "README.md"]
 }

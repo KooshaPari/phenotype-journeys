@@ -5,7 +5,13 @@ project follows [Semantic Versioning](https://semver.org/) at the package
 level; minor bumps may carry breaking changes while the package remains on
 `0.x`.
 
-## 0.1.2 — 2026-04-22
+## 0.1.0 — first GitHub Packages cut (2026-07)
+
+First coordinated registry version for the `npm/*` suite (aligned with the
+Rust `v0.1.0` train). Pre-registry local bumps noted as 0.1.1 / 0.1.2 below
+ship in this `0.1.0` tarball; those sections remain as development history.
+
+## 0.1.2 — 2026-04-22 (pre-registry)
 
 ### BREAKING
 
