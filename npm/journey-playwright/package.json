@@ -12,12 +12,18 @@
     "@playwright/test": "^1.48.0",
     "playwright": "^1.48.0"
   },
+  "scripts": {
+    "pack:check": "npm pack --dry-run",
+    "publish:gh": "npm publish --access restricted"
+  },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/KooshaPari/phenotype-journeys.git"
+    "url": "git+https://github.com/KooshaPari/phenotype-journeys.git",
+    "directory": "npm/journey-playwright"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
   },
   "files": ["src", "README.md"]
 }

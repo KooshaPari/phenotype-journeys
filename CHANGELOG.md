@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- README Install prefers crates.io after `v0.1.0` publish.
+
 ### Added
 
 ### Changed

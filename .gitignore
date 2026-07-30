@@ -22,3 +22,5 @@ Thumbs.db
 target/
 node_modules/
 dist/
+npm/**/*.tgz
+npm/dist/
