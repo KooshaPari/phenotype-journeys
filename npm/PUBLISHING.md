@@ -1,22 +1,12 @@
 # Publishing `@phenotype/*` npm packages
 
-These packages publish to **GitHub Packages** (`https://npm.pkg.github.com`),
-**not** the public `npmjs.com` registry.
+These packages are intended to publish to the **GitHub Packages** npm registry
+(`https://npm.pkg.github.com`) — not the public `npmjs.com` registry.
 
-| Package | Path | Version |
-|---|---|---|
-| `@phenotype/journey-viewer` | `npm/journey-viewer` | `0.1.0` |
-| `@phenotype/journey-playwright` | `npm/journey-playwright` | `0.1.0` |
-| `@phenotype/playwright-record` | `npm/playwright-record` | `0.1.0` |
-
-**Current honesty:** none of these names exist on `npmjs.com`. Until a
-successful GitHub Packages publish lands, consumers must use **path** or
-**git** dependencies (see the root README Install section and each package
-README). Do not assume `bun add @phenotype/...` resolves without a scoped
-`.npmrc` pointing at GitHub Packages **and** a published version.
-
-Out of scope for this cut: `@phenotype/doc-embeds` under `remotion/doc-embeds/`
-(separate Remotion pipeline; same registry when published later).
+**Current honesty (T0):** packages may not yet exist under
+`@phenotype` on GitHub Packages. Until a successful publish lands, consumers
+must use path or git dependencies (see the root README Install section and
+each package README). Do not assume `bun add @phenotype/...` works.
 
 ## Prerequisites
 
