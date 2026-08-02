@@ -27,11 +27,12 @@
 | Crate version | `0.1.0` — tagged [`v0.1.0`](https://github.com/KooshaPari/phenotype-journeys/releases/tag/v0.1.0) |
 | crates.io | **Published** — `phenotype-journey-core`, `phenotype-journeys-observability`, `phenotype-journey` |
 | npm | **Not on public npmjs.com**; GitHub Packages publish is documented but packages may be absent — prefer path/git |
-| Install path | crates.io preferred for Rust — see [Install](#install) |
-| Focus | Post-0.1.0 hardening; npm registry publish still open |
+| Install path | from source — see [Install](#install) |
+| Focus | T0 honesty (path/git) → T1 tag `v0.1.0` → T2 crates.io (see [cutting-a-release](docs/guides/cutting-a-release.md)) |
 
-> First Rust release complete: git tag `v0.1.0`, GitHub Release, and crates.io
-> publish. Next cut: [cutting-a-release](docs/guides/cutting-a-release.md).
+> Honest gap: local `cargo test --locked` is the verification gate. End-user
+> install is path/git only until a tagged release **and** crates.io publish
+> land ([cutting-a-release](docs/guides/cutting-a-release.md)).
 
 # phenotype-journeys
 
