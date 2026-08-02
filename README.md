@@ -26,9 +26,9 @@
 |---|---|
 | Crate version | `0.1.0` — tagged [`v0.1.0`](https://github.com/KooshaPari/phenotype-journeys/releases/tag/v0.1.0) |
 | crates.io | **Published** — `phenotype-journey-core`, `phenotype-journeys-observability`, `phenotype-journey` |
-| npm | **Not on npmjs.com**; GitHub Packages (`npm.pkg.github.com`) — publish ready, packages may still be absent — prefer path/git until then |
+| npm | **Not on public npmjs.com**; GitHub Packages publish is documented but packages may be absent — prefer path/git |
 | Install path | crates.io preferred for Rust — see [Install](#install) |
-| Focus | Post-0.1.0 hardening; first `@phenotype/*` GitHub Packages publish still operator-gated |
+| Focus | Post-0.1.0 hardening; npm registry publish still open |
 
 > First Rust release complete: git tag `v0.1.0`, GitHub Release, and crates.io
 > publish. Next cut: [cutting-a-release](docs/guides/cutting-a-release.md).
